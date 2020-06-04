@@ -51,8 +51,8 @@ end
 
 Base.convert(::Type{SentinelArray}, arr::AbstractArray{T}) where {T} = convert(SentinelArray{T}, arr)
 
-function Base.similar(A::SentinelArray{T, N, S, V}, eltype, dims::Dims{N2}) where {T, N, S, V, N2}
-    SentinelArray(similar(parent(A), T, dims), A.sentinel, A.value)
+function Base.similar(A::SentinelArray{T, N, S, V}, ::Type{T2}, dims::Dims{N2}) where {T, N, S, V, T2, N2}
+    SentinelArray(similar(parent(A), T2, dims), A.sentinel, A.value)
 end
 
 # conversion between SentinelArrays
@@ -176,20 +176,6 @@ end
 function Base.insert!(A::SentinelVector, idx::Integer, item)
     _growat!(A, idx, 1)
     @inbounds A[idx] = item
-    return A
-end
-
-function Base.permute!(A::SentinelVector, p::AbstractVector)
-    permute!(parent(A), p)
-    return A
-end
-
-function Base.sortperm(A::SentinelVector)
-    sortperm(parent(A))
-end
-
-function Base.sort!(A::SentinelVector)
-    sort!(parent(A))
     return A
 end
 
