@@ -12,6 +12,7 @@ defaultvalue(x) = missing
 
 sentinelbit(::Type{T}) where {T <: Unsigned} = Core.bitcast(T, T(1) << (8 * sizeof(T) - 1))
 
+defaultsentinel(::Type{String}) = undef
 defaultsentinel(::Type{Int64}) = -8899831978349840752
 
 function defaultsentinel(::Type{T}) where {T <: Union{Float16, Float32, Float64}}
@@ -33,8 +34,41 @@ Base.size(A::SentinelArray) = size(A.data)
 Base.IndexStyle(::Type{<:SentinelArray}) = IndexLinear()
 Base.@propagate_inbounds function Base.getindex(A::SentinelArray{T, N, S, V}, i::Int) where {T, N, S, V}
     checkbounds(A, i)
-    @inbounds x = A.data[i]
-    return ifelse(x === S, V, x)
+    if isbitstype(T)
+        @inbounds x = A.data[i]
+        return ifelse(x === S, V, x)
+    else
+        return isassigned(A.data, i) ? A.data[i] : V
+    end
+end
+
+unset!(A, i) = isassigned(A, i) && ccall(:jl_arrayunset, Cvoid, (Array, Csize_t), A, i - 1)
+
+Base.@propagate_inbounds function Base.setindex!(A::SentinelArray{T, N, S, V}, val, i::Int) where {T, N, S, V}
+    checkbounds(A, i)
+    if isbitstype(T)
+        A.data[i] = ifelse(val === V, S, val)
+    else
+        if val === V
+            unset!(A.data, i)
+        else
+            A.data[i] = val
+        end
+    end
+    val
+end
+
+function Base.fill!(A::SentinelArray{T, N, S, V}, val) where {T, N, S, V}
+    if isbitstype(T)
+        fill!(A.data, ifelse(val === V, S, val))
+    else
+        if val === V
+            foreach(i->unset!(A.data, i), eachindex(A.data))
+        else
+            fill!(A.data, val)
+        end
+    end
+    A
 end
 
 function SentinelArray{T, N}(::UndefInitializer, dims::Tuple{Vararg{Integer}}) where {T, N}
@@ -69,12 +103,6 @@ function Base.empty!(a::SentinelVector)
 end
 
 Base.copy(a::SentinelArray{T, N}) where {T, N} = SentinelArray{T, N}(copy(a.data))
-
-Base.@propagate_inbounds function Base.setindex!(arr::SentinelArray, val, idx::Integer...)
-    checkbounds(arr, idx...)
-    arr.data[idx...] = val
-    val
-end
 
 function Base.resize!(arr::SentinelVector, len)
     resize!(arr.data, len)
