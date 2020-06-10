@@ -1,5 +1,7 @@
 module SentinelArrays
 
+using Dates
+
 export SentinelArray, SentinelVector
 
 mutable struct SentinelArray{T, N, S, V, A <: AbstractArray{T, N}} <: AbstractArray{Union{T, V}, N}
@@ -13,12 +15,16 @@ mutable struct SentinelArray{T, N, S, V, A <: AbstractArray{T, N}} <: AbstractAr
 end
 
 Base.parent(A::SentinelArray) = A.data
+Base.pointer(A::SentinelArray) = pointer(parent(A))
 
 const SentinelVector{T} = SentinelArray{T, 1}
 
 defaultvalue(T) = missing
 
 defaultsentinel(T) = isbitstype(T) ? rand(T) : undef
+defaultsentinel(::Type{Date}) = Date(Dates.UTD(typemin(Int64)))
+defaultsentinel(::Type{DateTime}) = DateTime(Dates.UTM(typemin(Int64)))
+defaultsentinel(::Type{Time}) = Time(Nanosecond(typemin(Int64)))
 defaultsentinel(::Type{Int64}) = -8899831978349840752
 
 # our own custom NaN bit pattern
@@ -30,7 +36,10 @@ end
 
 # constructors
 function SentinelArray{T, N}(::UndefInitializer, dims::Tuple{Vararg{Integer}}, s=defaultsentinel(T), v=defaultvalue(T)) where {T, N}
-    SentinelArray(Array{T, N}(undef, dims), s, v)
+    A = Array{T, N}(undef, dims)
+    # initilize w/ missing values
+    isbitstype(T) && fill!(A, s)
+    return SentinelArray(A, s, v)
 end
 
 function SentinelArray{T}(::UndefInitializer, dims::Tuple{Vararg{Integer}}, s=defaultsentinel(T), v=defaultvalue(T)) where {T}
@@ -41,15 +50,20 @@ SentinelArray{T, N}(::UndefInitializer, dims::Vararg{Integer, N}) where {T, N} =
 SentinelArray{T}(::UndefInitializer, dims::Integer...) where {T} = SentinelArray{T, length(dims)}(undef, dims)
 SentinelVector{T}(::UndefInitializer, len::Int, s=defaultsentinel(T), v=defaultvalue(T)) where {T} = SentinelArray{T, 1}(undef, (len,), s, v)
 
-function Base.convert(::Type{SentinelArray{T}}, arr::AbstractArray{T, N}) where {T, N}
-    s = SentinelArray{T, N}(undef, size(arr))
+function Base.convert(::Type{SentinelArray{T}}, arr::AbstractArray{T2, N}) where {T, T2, N}
+    A = SentinelArray(Array{T, N}(undef, size(arr)))
     @inbounds for i in eachindex(arr)
-        s.data[i] = arr[i]
+        A[i] = arr[i]
     end
-    s
+    return A
 end
 
 Base.convert(::Type{SentinelArray}, arr::AbstractArray{T}) where {T} = convert(SentinelArray{T}, arr)
+Base.convert(::Type{SentinelVector{T}}, arr::AbstractArray) where {T} = convert(SentinelArray{T}, arr)
+
+# TODO: convert between SentinelArrays
+  # different types
+  # different sentinels/values
 
 function Base.similar(A::SentinelArray{T, N, S, V}, ::Type{T2}, dims::Dims{N2}) where {T, N, S, V, T2, N2}
     SentinelArray(similar(parent(A), T2, dims), A.sentinel, A.value)
@@ -112,6 +126,9 @@ Base.@propagate_inbounds function Base.getindex(A::SentinelArray{T, N, S, V}, i:
     if S === UndefInitializer
         @inbounds x = isassigned(parent(A), i) ? parent(A)[i] : A.value
         return x
+    elseif Base.issingletontype(S) && Base.issingletontype(V) && S === V
+        @inbounds x = parent(A)[i]
+        return x
     else
         @inbounds x = parent(A)[i]
         return ifelse(eq(x, A.sentinel), A.value, x)
@@ -128,6 +145,8 @@ Base.@propagate_inbounds function Base.setindex!(A::SentinelArray{T, N, S, V}, v
         else
             parent(A)[i] = val
         end
+    elseif Base.issingletontype(S) && Base.issingletontype(V) && S === V
+        parent(A)[i] = val
     else
         if eq(val, A.sentinel)
             # trying to set value of our sentinel
@@ -148,7 +167,14 @@ end
 Base.copy(A::SentinelArray{T, N}) where {T, N} = SentinelArray(copy(parent(A)), A.sentinel, A.value)
 
 function Base.resize!(A::SentinelVector, len)
+    oldlen = length(A)
     resize!(parent(A), len)
+    if len > oldlen
+        sent = A.sentinel
+        for i = (oldlen + 1:len)
+            @inbounds A.data[i] = sent
+        end
+    end
     return A
 end
 
