@@ -70,34 +70,49 @@ function Base.similar(A::SentinelArray{T, N, S, V}, ::Type{T2}, dims::Dims{N2}) 
 end
 
 # conversion between SentinelArrays
-function newsentinel!(A::SentinelArray{T, N, S, V}) where {T, N, S, V}
+function recode!(A::SentinelArray{T, N, S, V}, newsentinel::S) where {T, N, S, V}
+    oldsentinel = A.sentinel
+    P = parent(A)
+    @simd for i in eachindex(P)
+        @inbounds x = P[i]
+        @inbounds P[i] = ifelse(eq(x, oldsentinel), newsentinel, x)
+    end
+    A.sentinel = newsentinel
+    return
+end
+
+function newsentinel!(arrays::SentinelArray{T, N, S, V}...; force::Bool=true) where {T, N, S, V}
     if S === UndefInitializer
         # undef can't be recoded
         return
     end
+    A = arrays[1]
     oldsent = A.sentinel
+    if !force
+        if all(x->x.sentinel == oldsent, arrays)
+            # all arrays have the same sentinel & we're not forcing a new one
+            return
+        end
+    end
     newsent = rand(T)
-    p = parent(A)
     # find a new sentinel that doesn't already exist in parent
     while true
         foundnewsent = false
-        for i in eachindex(p)
-            @inbounds z = p[i]
-            if eq(z, newsent)
-                foundnewsent = true
-                break
+        for A in arrays
+            p = parent(A)
+            for i in eachindex(p)
+                @inbounds z = p[i]
+                if eq(z, newsent)
+                    foundnewsent = true
+                    break
+                end
             end
         end
         !foundnewsent && break
         newsent = rand(T)
     end
-    A.sentinel = newsent
-    # recode existing values
-    for i in eachindex(p)
-        @inbounds z = p[i]
-        if eq(z, oldsent)
-            p[i] = newsent
-        end
+    for A in arrays
+        recode!(A, newsent)
     end
     return
 end
@@ -113,10 +128,6 @@ Base.stride(A::SentinelArray, k::Integer) = stride(parent(a), k)
 Base.strides(A::SentinelArray) = strides(parent(a))
 
 Base.IndexStyle(::Type{SentinelArray{T, N, S, V, A}}) where {T, N, S, V, A} = Base.IndexStyle(A)
-
-#TODO
-# Base.iterate(A::SentinelArray) = iterate(parent(A))
-# Base.iterate(A::SentinelArray, st) = iterate()
 
 eq(x::T, y::T) where {T <: Real} = x === y
 eq(x, y) = isequal(x, y)
@@ -166,13 +177,12 @@ end
 
 Base.copy(A::SentinelArray{T, N}) where {T, N} = SentinelArray(copy(parent(A)), A.sentinel, A.value)
 
-function Base.resize!(A::SentinelVector, len)
+function Base.resize!(A::SentinelVector{T}, len) where {T}
     oldlen = length(A)
     resize!(parent(A), len)
-    if isbitstype(Core.Compiler.typesubtract(eltype(A), typeof(A.value))) && len > oldlen
+    if isbitstype(T) && len > oldlen
         sent = A.sentinel
         for i = (oldlen + 1:len)
-            @show i
             @inbounds A.data[i] = sent
         end
     end

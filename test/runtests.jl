@@ -69,4 +69,22 @@ insert!(x, length(x) + 1, "pirate")
 
 @test splice!(x, length(x)) == "pirate"
 
+t = [SentinelVector{Int}(undef, 10), SentinelVector{Int}(undef, 10), SentinelVector{Int}(undef, 5)]
+sent = t[1].sentinel
+@test all(x->x.sentinel == sent, t)
+SentinelArrays.newsentinel!(t...; force=false)
+# make sure nothing got recoded
+@test all(x->x.sentinel == sent, t)
+SentinelArrays.newsentinel!(t...; force=true)
+# make sure all got recoded
+@test all(x->x.sentinel != sent, t)
+
+# force recode of just one vector
+sent = t[1].sentinel
+t[2][1] = t[2].sentinel
+@test !all(x->x.sentinel == sent, t)
+SentinelArrays.newsentinel!(t...)
+# make sure all got recoded to same
+@test all(x->x.sentinel == t[1].sentinel, t)
+
 end # @testset
