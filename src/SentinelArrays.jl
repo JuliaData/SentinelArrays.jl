@@ -9,12 +9,13 @@ mutable struct SentinelArray{T, N, S, V, A <: AbstractArray{T, N}} <: AbstractAr
     sentinel::S
     value::V
 
-    @inline function SentinelArray(A::AbstractArray{T, N}, sentinel::S=defaultsentinel(T), value::V=defaultvalue(T)) where {T, N, S, V}
+    function SentinelArray(A::AbstractArray{T, N}, sentinel::S=defaultsentinel(T), value::V=defaultvalue(T)) where {T, N, S, V}
         return new{T, N, S, V, typeof(A)}(A, sentinel, value)
     end
 end
 
 Base.parent(A::SentinelArray) = A.data
+# users of pointer should be careful because it's the raw storage data, which doesn't respect the sentinel semantics
 Base.pointer(A::SentinelArray) = pointer(parent(A))
 
 const SentinelVector{T} = SentinelArray{T, 1}
@@ -60,10 +61,6 @@ end
 
 Base.convert(::Type{SentinelArray}, arr::AbstractArray{T}) where {T} = convert(SentinelArray{T}, arr)
 Base.convert(::Type{SentinelVector{T}}, arr::AbstractArray) where {T} = convert(SentinelArray{T}, arr)
-
-# TODO: convert between SentinelArrays
-  # different types
-  # different sentinels/values
 
 function Base.similar(A::SentinelArray{T, N, S, V}, ::Type{T2}, dims::Dims{N2}) where {T, N, S, V, T2, N2}
     SentinelArray(similar(parent(A), T2, dims), A.sentinel, A.value)
@@ -123,13 +120,14 @@ Base.size(A::SentinelArray, i) = size(parent(A), i)
 Base.length(A::SentinelArray) = length(parent(A))
 Base.axes(A::SentinelArray) = axes(parent(A))
 Base.axes(A::SentinelArray, i) = axes(parent(A), i)
-Base.stride(A::SentinelArray, k::Symbol) = stride(parent(a), dim(a, k))
-Base.stride(A::SentinelArray, k::Integer) = stride(parent(a), k)
-Base.strides(A::SentinelArray) = strides(parent(a))
+Base.stride(A::SentinelArray, k::Integer) = stride(parent(A), k)
+Base.strides(A::SentinelArray) = strides(parent(A))
 
 Base.IndexStyle(::Type{SentinelArray{T, N, S, V, A}}) where {T, N, S, V, A} = Base.IndexStyle(A)
 
+# we define our own `eq` here because, for example, for NaN, we want ===
 eq(x::T, y::T) where {T <: Real} = x === y
+# but if they use `missing` as sentinel, we want isequal
 eq(x, y) = isequal(x, y)
 
 Base.@propagate_inbounds function Base.getindex(A::SentinelArray{T, N, S, V}, i::Int) where {T, N, S, V}
@@ -216,15 +214,16 @@ function Base.insert!(A::SentinelVector, idx::Integer, item)
     return A
 end
 
-#TODO: assert A.sentinel == B.sentinel or recode
-# function Base.vcat(A::SentinelVector{T}, b::SentinelVector{T}) where T
-#     SentinelVector{T}(vcat(parent(A), b.data))
-# end
+function Base.vcat(A::SentinelVector{T, S, V}, B::SentinelVector{T, S, V}) where {T, S, V}
+    newsentinel!(A, B; force=false)
+    return SentinelArray(vcat(parent(A), parent(B)), A.sentinel, A.value)
+end
 
-# function Base.append!(A::SentinelVector{T, S, V}, B::SentinelVector{T, S, V}) where {T, S, V}
-#     append!(parent(A), parent(B))
-#     return A
-# end
+function Base.append!(A::SentinelVector{T, S, V}, B::SentinelVector{T, S, V}) where {T, S, V}
+    newsentinel!(A, B; force=false)
+    append!(parent(A), parent(B))
+    return A
+end
 
 function Base.append!(A::SentinelVector{T}, b::AbstractVector) where T
     for x in b

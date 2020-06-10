@@ -69,7 +69,7 @@ insert!(x, length(x) + 1, "pirate")
 
 @test splice!(x, length(x)) == "pirate"
 
-t = [SentinelVector{Int}(undef, 10), SentinelVector{Int}(undef, 10), SentinelVector{Int}(undef, 5)]
+t = [SentinelVector{Int64}(undef, 10), SentinelVector{Int64}(undef, 10), SentinelVector{Int64}(undef, 5)]
 sent = t[1].sentinel
 @test all(x->x.sentinel == sent, t)
 SentinelArrays.newsentinel!(t...; force=false)
@@ -86,5 +86,30 @@ t[2][1] = t[2].sentinel
 SentinelArrays.newsentinel!(t...)
 # make sure all got recoded to same
 @test all(x->x.sentinel == t[1].sentinel, t)
+
+A = SentinelArray(Int64[i for i = 1:10])
+B = SentinelVector{Int64}(undef, 10)
+
+C = vcat(A, B)
+@test C[1:10] == collect(1:10)
+@test all(C[11:20] .=== missing)
+
+append!(A, B)
+@test A[1:10] == collect(1:10)
+@test all(A[11:20] .=== missing)
+
+A = SentinelArray(Int64[i for i = 1:10])
+B = SentinelVector{Int64}(undef, 10)
+# force B to recode
+B[1] = B.sentinel
+B[1] = missing
+
+C = vcat(A, B)
+@test C[1:10] == collect(1:10)
+@test all(C[11:20] .=== missing)
+
+append!(A, B)
+@test A[1:10] == collect(1:10)
+@test all(A[11:20] .=== missing)
 
 end # @testset
