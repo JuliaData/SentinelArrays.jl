@@ -1,24 +1,31 @@
 using SentinelArrays, Test
 
+@testset "SentinelArrays" begin
+
 x = SentinelVector{Float64}(undef, 10)
 fill!(x, missing)
 @test length(x) == 10
-@test all(x.data .== x.sentinel)
+@test all(isequal.(x.data, x.sentinel))
 
 @test x[1] === missing
 # force recoding
+sent = x.sentinel
 x[1] = x.sentinel
-@test x[1] === missing
+@test x[1] === sent
 
 @test size(x) == (10,)
 x[1] = 3.14
 @test x[1] === 3.14
+
+resize!(x, length(x) + 1)
+@test x[end] === missing
 
 x = SentinelVector{Int64}(undef, 1)
 x[1] = missing
 @test x[1] === missing
 
 x = SentinelVector{Union{Bool, Missing}}(undef, 1, missing, missing)
+@test x[1] === missing
 
 x = SentinelVector{String}(undef, 10)
 @test x[1] === missing
@@ -61,3 +68,5 @@ insert!(x, length(x) + 1, "pirate")
 @test x[end] == "pirate"
 
 @test splice!(x, length(x)) == "pirate"
+
+end # @testset

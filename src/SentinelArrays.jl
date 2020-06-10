@@ -169,9 +169,10 @@ Base.copy(A::SentinelArray{T, N}) where {T, N} = SentinelArray(copy(parent(A)), 
 function Base.resize!(A::SentinelVector, len)
     oldlen = length(A)
     resize!(parent(A), len)
-    if len > oldlen
+    if isbitstype(Core.Compiler.typesubtract(eltype(A), typeof(A.value))) && len > oldlen
         sent = A.sentinel
         for i = (oldlen + 1:len)
+            @show i
             @inbounds A.data[i] = sent
         end
     end
