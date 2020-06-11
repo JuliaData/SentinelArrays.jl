@@ -132,6 +132,10 @@ function recode!(A::SentinelArray{T, N, S, V}, newsentinel::S) where {T, N, S, V
     return
 end
 
+struct SentinelCollisionError <: Exception
+    msg
+end
+
 function newsentinel!(arrays::SentinelArray{T, N, S, V}...; force::Bool=true) where {T, N, S, V}
     if S === UndefInitializer
         # undef can't be recoded
@@ -163,7 +167,7 @@ function newsentinel!(arrays::SentinelArray{T, N, S, V}...; force::Bool=true) wh
         !foundnewsent && break
         newsent = newsentinel(T)
         attempts += 1
-        attempts > 5 && error("error trying to automatically find a new sentinel for SentinelArray")
+        attempts > 5 && throw(SentinelCollisionError("error trying to automatically find a new sentinel for SentinelArray; consider using `Vector{Union{$T, $V}}` instead"))
     end
     for A in arrays
         recode!(A, newsent)
