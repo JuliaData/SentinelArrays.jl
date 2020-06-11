@@ -121,4 +121,7 @@ A = SentinelArray([i for i = 0x00:0xff])
 t = SentinelVector{Tuple{Int32, Int32}}(undef, 1)
 @test t.data[1] === t.sentinel
 
+t = SentinelMatrix{Float64}(undef, (10, 10))
+@test size(t) == (10, 10)
+
 end # @testset

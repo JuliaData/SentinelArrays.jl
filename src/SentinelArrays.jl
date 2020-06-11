@@ -14,6 +14,7 @@ end
 """
     SentinelArray(A::AbstractArray, sentinel, value)
     SentinelVector{T}(undef, len, sentinel, value)
+    SentinelMatrix{T}(undef, dims, sentinel, value)
     SentinelArray{T, N}(undef, dims, sentinel, value)
 
 Construct a `SentinelArray` by either wrapping an existing `AbstractArray` or using the standard `undef` pattern, which first constructs an `Array` to be wrapped by `SentinelArray`.
