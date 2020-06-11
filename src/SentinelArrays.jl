@@ -1,8 +1,15 @@
 module SentinelArrays
 
-using Dates
+using Dates, Random
 
 export SentinelArray, SentinelVector
+
+const RNG = [MersenneTwister()]
+
+function __init__()
+    Threads.resize_nthreads!(RNG)
+    return
+end
 
 """
 
@@ -26,10 +33,11 @@ const SentinelVector{T} = SentinelArray{T, 1}
 
 defaultvalue(T) = missing
 
-function defaultsentinel(T)
+function newsentinel(T)
     !isbitstype(T) && return undef
-    return reinterpret(T, rand(UInt8, sizeof(T)))[1]
+    return reinterpret(T, rand(RNG[Threads.threadid()], UInt8, sizeof(T)))[1]
 end
+defaultsentinel(T) = newsentinel(T)
 defaultsentinel(::Type{Date}) = Date(Dates.UTD(typemin(Int64)))
 defaultsentinel(::Type{DateTime}) = DateTime(Dates.UTM(typemin(Int64)))
 defaultsentinel(::Type{Time}) = Time(Nanosecond(typemin(Int64)))
@@ -99,7 +107,7 @@ function newsentinel!(arrays::SentinelArray{T, N, S, V}...; force::Bool=true) wh
         end
     end
     attempts = 0
-    newsent = rand(T)
+    newsent = newsentinel(T)
     # find a new sentinel that doesn't already exist in parent
     while true
         foundnewsent = false
@@ -114,7 +122,7 @@ function newsentinel!(arrays::SentinelArray{T, N, S, V}...; force::Bool=true) wh
             end
         end
         !foundnewsent && break
-        newsent = rand(T)
+        newsent = newsentinel(T)
         attempts += 1
         attempts > 5 && error("error trying to automatically find a new sentinel for SentinelArray")
     end
