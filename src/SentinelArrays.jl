@@ -4,6 +4,9 @@ using Dates
 
 export SentinelArray, SentinelVector
 
+"""
+
+"""
 mutable struct SentinelArray{T, N, S, V, A <: AbstractArray{T, N}} <: AbstractArray{Union{T, V}, N}
     data::A
     sentinel::S
@@ -91,6 +94,7 @@ function newsentinel!(arrays::SentinelArray{T, N, S, V}...; force::Bool=true) wh
             return
         end
     end
+    attempts = 0
     newsent = rand(T)
     # find a new sentinel that doesn't already exist in parent
     while true
@@ -107,6 +111,8 @@ function newsentinel!(arrays::SentinelArray{T, N, S, V}...; force::Bool=true) wh
         end
         !foundnewsent && break
         newsent = rand(T)
+        attempts += 1
+        attempts > 5 && error("error trying to automatically find a new sentinel for SentinelArray")
     end
     for A in arrays
         recode!(A, newsent)
