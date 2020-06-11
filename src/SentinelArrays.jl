@@ -2,7 +2,7 @@ module SentinelArrays
 
 using Dates, Random
 
-export SentinelArray, SentinelVector
+export SentinelArray, SentinelMatrix, SentinelVector, SentinelCollisionError
 
 const RNG = [MersenneTwister()]
 
@@ -67,6 +67,7 @@ Base.parent(A::SentinelArray) = A.data
 Base.pointer(A::SentinelArray) = pointer(parent(A))
 
 const SentinelVector{T} = SentinelArray{T, 1}
+const SentinelMatrix{T} = SentinelArray{T, 2}
 
 defaultvalue(T) = missing
 
