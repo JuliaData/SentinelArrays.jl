@@ -118,4 +118,7 @@ A = SentinelArray([i for i = 0x00:0xff])
 
 @test_throws ErrorException SentinelVector{Bool}(undef, 1)
 
+t = SentinelVector{Tuple{Int32, Int32}}(undef, 1)
+@test t.data[1] === t.sentinel
+
 end # @testset

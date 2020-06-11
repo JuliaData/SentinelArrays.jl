@@ -26,7 +26,10 @@ const SentinelVector{T} = SentinelArray{T, 1}
 
 defaultvalue(T) = missing
 
-defaultsentinel(T) = isbitstype(T) ? rand(T) : undef
+function defaultsentinel(T)
+    !isbitstype(T) && return undef
+    return reinterpret(T, rand(UInt8, sizeof(T)))[1]
+end
 defaultsentinel(::Type{Date}) = Date(Dates.UTD(typemin(Int64)))
 defaultsentinel(::Type{DateTime}) = DateTime(Dates.UTM(typemin(Int64)))
 defaultsentinel(::Type{Time}) = Time(Nanosecond(typemin(Int64)))
