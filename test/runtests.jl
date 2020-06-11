@@ -112,4 +112,16 @@ append!(A, B)
 @test A[1:10] == collect(1:10)
 @test all(A[11:20] .=== missing)
 
+# make sure we bail when can't find a new automatic sentinel
+A = SentinelArray([i for i = 0x00:0xff])
+@test_throws SentinelCollisionError setindex!(A, A.sentinel, 1)
+
+@test_throws ErrorException SentinelVector{Bool}(undef, 1)
+
+t = SentinelVector{Tuple{Int32, Int32}}(undef, 1)
+@test t.data[1] === t.sentinel
+
+t = SentinelMatrix{Float64}(undef, (10, 10))
+@test size(t) == (10, 10)
+
 end # @testset
