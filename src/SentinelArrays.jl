@@ -12,6 +12,7 @@ mutable struct SentinelArray{T, N, S, V, A <: AbstractArray{T, N}} <: AbstractAr
     sentinel::S
     value::V
 
+    SentinelArray(A::AbstractArray{Bool, N}, sentinel::S, value::V) where {N, S, V} = error("SentinelArray  not allowed for `Bool` elements (no sentinel available). Try using a `Array{Union{Bool, $V}` instead.")
     function SentinelArray(A::AbstractArray{T, N}, sentinel::S=defaultsentinel(T), value::V=defaultvalue(T)) where {T, N, S, V}
         return new{T, N, S, V, typeof(A)}(A, sentinel, value)
     end

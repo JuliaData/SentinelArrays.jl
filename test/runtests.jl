@@ -116,4 +116,6 @@ append!(A, B)
 A = SentinelArray([i for i = 0x00:0xff])
 @test_throws ErrorException setindex!(A, A.sentinel, 1)
 
+@test_throws ErrorException SentinelVector{Bool}(undef, 1)
+
 end # @testset
