@@ -38,6 +38,7 @@ If another sentinel can't be found (i.e. the values already exist in the wrapped
   * It's also currently not possible to use `Vector{Union{T, Missing}}` with `Mmap.mmap`; with `SentinelArray`, you can write the parent array to disk and then do `SentinelArray(Mmap.mmap(array_type, file))` (assuming usage of default sentinel/value)
 
 ### Examples
+
 ```julia
 # initialize a new SentinelArray with default sentinel/value
 A = SentinelVector{Float64}(undef, 10)
@@ -45,6 +46,7 @@ A = SentinelVector{Float64}(undef, 10)
 # wrap an existing array, manually providing sentinel/value
 parent = zeros(UInt8, 10)
 B = SentinelArray(parent, typemax(UInt8), nothing)
+```
 
 ## Project Status
 
