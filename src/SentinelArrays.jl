@@ -2,7 +2,7 @@ module SentinelArrays
 
 using Dates, Random
 
-export SentinelArray, SentinelMatrix, SentinelVector, SentinelCollisionError
+export SentinelArray, SentinelMatrix, SentinelVector, SentinelCollisionError, ChainedVector
 
 const RNG = [MersenneTwister()]
 
@@ -271,9 +271,9 @@ function Base.insert!(A::SentinelVector, idx::Integer, item)
     return A
 end
 
-function Base.vcat(A::SentinelVector{T, S, V}, B::SentinelVector{T, S, V}) where {T, S, V}
-    newsentinel!(A, B; force=false)
-    return SentinelArray(vcat(parent(A), parent(B)), A.sentinel, A.value)
+function Base.vcat(A::SentinelVector{T, S, V}, B::SentinelVector{T, S, V}...) where {T, S, V}
+    newsentinel!(A, B...; force=false)
+    return SentinelArray(vcat(parent(A), map(parent, B)...), A.sentinel, A.value)
 end
 
 function Base.append!(A::SentinelVector{T, S, V}, B::SentinelVector{T, S, V}) where {T, S, V}
@@ -390,5 +390,7 @@ function Base.popfirst!(A::SentinelVector)
     deleteat!(A, 1)
     return item
 end
+
+include("chainedvector.jl")
 
 end # module
