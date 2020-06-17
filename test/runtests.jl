@@ -2,7 +2,7 @@ using SentinelArrays, Test
 
 @testset "SentinelArrays" begin
 
-x = SentinelVector{Float64}(undef, 10)
+x = SentinelVector{Int64}(undef, 10)
 fill!(x, missing)
 @test length(x) == 10
 @test all(isequal.(x.data, x.sentinel))
@@ -14,8 +14,8 @@ x[1] = x.sentinel
 @test x[1] === sent
 
 @test size(x) == (10,)
-x[1] = 3.14
-@test x[1] === 3.14
+x[1] = 3
+@test x[1] === 3
 
 resize!(x, length(x) + 1)
 @test x[end] === missing
