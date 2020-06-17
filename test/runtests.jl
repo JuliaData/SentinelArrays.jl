@@ -2,7 +2,7 @@ using SentinelArrays, Test
 
 @testset "SentinelArrays" begin
 
-x = SentinelVector{Int64}(undef, 10)
+x = SentinelVector{Int}(undef, 10)
 fill!(x, missing)
 @test length(x) == 10
 @test all(isequal.(x.data, x.sentinel))
