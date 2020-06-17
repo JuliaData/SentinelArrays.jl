@@ -72,39 +72,34 @@ const SentinelMatrix{T} = SentinelArray{T, 2}
 
 defaultvalue(T) = missing
 
-function newsentinel(T)
-    !isbitstype(T) && return undef
-    return reinterpret(T, rand(RNG[Threads.threadid()], UInt8, sizeof(T)))[1]
-end
-
-defaultsentinel(T) = newsentinel(T)
-defaultsentinel(::Type{Date}) = Date(Dates.UTD(typemin(Int64)))
-defaultsentinel(::Type{DateTime}) = DateTime(Dates.UTM(typemin(Int64)))
-defaultsentinel(::Type{Time}) = Time(Nanosecond(typemin(Int64)))
-defaultsentinel(::Type{Int64}) = -8899831978349840752
-
-# our own custom NaN bit pattern
-sentinelbit(::Type{T}) where {T <: Unsigned} = Core.bitcast(T, T(1) << (8 * sizeof(T) - 1))
-function defaultsentinel(::Type{T}) where {T <: Union{Float16, Float32, Float64}}
-    nan = Core.bitcast(Base.uinttype(T), T(0) / T(0))
-    return Core.bitcast(T, nan | sentinelbit(Base.uinttype(T)))
-end
+newsentinel(T) = !isbitstype(T) ? undef : reinterpret(T, rand(RNG[Threads.threadid()], UInt8, sizeof(T)))[1]
+defaultsentinel(T) = !isbitstype(T) ? undef : reinterpret(T, fill(0xff, sizeof(T)))[1]
 
 # constructors
-function SentinelArray{T, N}(::UndefInitializer, dims::Tuple{Vararg{Integer}}, s=defaultsentinel(T), v=defaultvalue(T)) where {T, N}
+function SentinelArray{T, N}(::UndefInitializer, dims::Tuple{Vararg{Integer}}, s=nothing, v=defaultvalue(T)) where {T, N}
     A = Array{T, N}(undef, dims)
     # initilize w/ missing values
-    isbitstype(T) && fill!(A, s)
-    return SentinelArray(A, s, v)
+    if isbitstype(T)
+        if s === nothing
+            sent = defaultsentinel(T)
+            ccall(:memset, Ptr{Cvoid}, (Ptr{Cvoid}, Cint, Csize_t), pointer(A), 0xff, sizeof(A))
+        else
+            sent = s
+            fill!(A, sent)
+        end
+    else
+        sent = something(s, defaultsentinel(T))
+    end
+    return SentinelArray(A, sent, v)
 end
 
-function SentinelArray{T}(::UndefInitializer, dims::Tuple{Vararg{Integer}}, s=defaultsentinel(T), v=defaultvalue(T)) where {T}
+function SentinelArray{T}(::UndefInitializer, dims::Tuple{Vararg{Integer}}, s=nothing, v=defaultvalue(T)) where {T}
     SentinelArray{T, length(dims)}(undef, dims, s, v)
 end
 
 SentinelArray{T, N}(::UndefInitializer, dims::Vararg{Integer, N}) where {T, N} = SentinelArray{T, N}(undef, dims)
 SentinelArray{T}(::UndefInitializer, dims::Integer...) where {T} = SentinelArray{T, length(dims)}(undef, dims)
-SentinelVector{T}(::UndefInitializer, len::Int, s=defaultsentinel(T), v=defaultvalue(T)) where {T} = SentinelArray{T, 1}(undef, (len,), s, v)
+SentinelVector{T}(::UndefInitializer, len::Int, s=nothing, v=defaultvalue(T)) where {T} = SentinelArray{T, 1}(undef, (len,), s, v)
 
 function Base.convert(::Type{SentinelArray{T}}, arr::AbstractArray{T2, N}) where {T, T2, N}
     A = SentinelArray(Array{T, N}(undef, size(arr)))
@@ -193,7 +188,7 @@ eq(x::T, y::T) where {T <: Real} = x === y
 eq(x, y) = isequal(x, y)
 
 Base.@propagate_inbounds function Base.getindex(A::SentinelArray{T, N, S, V}, i::Int) where {T, N, S, V}
-    checkbounds(A, i)
+    @boundscheck checkbounds(A, i)
     if S === UndefInitializer
         @inbounds x = isassigned(parent(A), i) ? parent(A)[i] : A.value
         return x
@@ -209,7 +204,7 @@ end
 unset!(A, i) = isassigned(A, i) && ccall(:jl_arrayunset, Cvoid, (Array, Csize_t), A, i - 1)
 
 Base.@propagate_inbounds function Base.setindex!(A::SentinelArray{T, N, S, V}, val, i::Int) where {T, N, S, V}
-    checkbounds(A, i)
+    @boundscheck checkbounds(A, i)
     if S === UndefInitializer
         if eq(val, A.value)
             unset!(parent(A), i)
