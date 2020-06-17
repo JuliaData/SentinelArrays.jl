@@ -214,12 +214,10 @@ Base.@propagate_inbounds function Base.setindex!(A::SentinelArray{T, N, S, V}, v
     elseif Base.issingletontype(S) && Base.issingletontype(V) && S === V
         parent(A)[i] = val
     else
-        if T <: Integer
-            if eq(val, A.sentinel)
-                # trying to set value of our sentinel
-                # need to pick a new sentinel
-                newsentinel!(A)
-            end
+        if eq(val, A.sentinel)
+            # trying to set value of our sentinel
+            # need to pick a new sentinel
+            newsentinel!(A)
         end
         parent(A)[i] = ifelse(eq(val, A.value), A.sentinel, val)
     end
