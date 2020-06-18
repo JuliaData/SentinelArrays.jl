@@ -48,6 +48,37 @@ Base.@propagate_inbounds function Base.setindex!(A::ChainedVector, v, i::Integer
     return v
 end
 
+# efficient iteration
+@inline function Base.iterate(A::ChainedVector)
+    length(A) == 0 && return nothing
+    i = 2
+    chunk = 1
+    chunk_i = 1
+    chunk_len = A.inds[1]
+    if i > chunk_len
+        chunk += 1
+        chunk_i = 1
+        @inbounds chunk_len = A.inds[min(length(A.inds), chunk)]
+    else
+        chunk_i += 1
+    end
+    return A.arrays[1][1], (i, chunk, chunk_i, chunk_len, length(A))
+end
+
+@inline function Base.iterate(A::ChainedVector, (i, chunk, chunk_i, chunk_len, len))
+    i > len && return nothing
+    @inbounds x = A.arrays[chunk][chunk_i]
+    i += 1
+    if i > chunk_len
+        chunk += 1
+        chunk_i = 1
+        @inbounds chunk_len = A.inds[min(length(A.inds), chunk)]
+    else
+        chunk_i += 1
+    end
+    return x, (i, chunk, chunk_i, chunk_len, len)
+end
+
 # other AbstractArray functions
 function Base.empty!(A::ChainedVector)
     empty!(A.arrays)
@@ -115,6 +146,11 @@ Base.@propagate_inbounds function Base.deleteat!(A::ChainedVector, i::Integer)
     for j = chunk:length(A.inds)
         @inbounds A.inds[j] -= 1
     end
+    # check if we should remove an empty chunk
+    if length(A.arrays[chunk]) == 0
+        deleteat!(A.arrays, chunk)
+        deleteat!(A.inds, chunk)
+    end
     return A
 end
 
@@ -145,9 +181,10 @@ function Base.popfirst!(A::ChainedVector)
     return item
 end
 
-Base.@propagate_inbounds function Base.insert!(A::ChainedVector, i::Integer, item)
-    # special case inserting into empty array
-    if i == 1 && length(A) == 0
+Base.@propagate_inbounds function Base.insert!(A::ChainedVector{T, AT}, i::Integer, item) where {T, AT <: AbstractVector{T}}
+    if i == 1 && length(A.arrays) == 0
+        push!(A.arrays, similar(AT, 0))
+        push!(A.inds, 0)
         chunk, ix = 1, 1
     else
         @boundscheck checkbounds(A, i)

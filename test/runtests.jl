@@ -241,4 +241,19 @@ deleteat!(x, 1:4)
 deleteat!(x, [2, 4])
 @test x == [6, 8, 10]
 
+x = ChainedVector([[1,2,3], [4,5,6], [7,8,9,10]])
+deleteat!(x, 1)
+deleteat!(x, 1)
+deleteat!(x, 1)
+@test length(x.arrays) == 2
+
+x = ChainedVector([[1,2,3], [4,5,6], [7,8,9,10]])
+deleteat!(x, 4)
+deleteat!(x, 4)
+deleteat!(x, 4)
+@test length(x.arrays) == 2
+
+x = ChainedVector([[1,2,3], [4,5,6], [7,8,9,10]])
+@test sum(i for i in x) == sum(copy(x))
+
 end
