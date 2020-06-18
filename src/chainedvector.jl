@@ -51,7 +51,18 @@ end
 # efficient iteration
 @inline function Base.iterate(A::ChainedVector)
     length(A) == 0 && return nothing
-    return A.arrays[1][1], (2, 1, 2, A.inds[1], length(A))
+    i = 2
+    chunk = 1
+    chunk_i = 1
+    chunk_len = A.inds[1]
+    if i > chunk_len
+        chunk += 1
+        chunk_i = 1
+        @inbounds chunk_len = A.inds[min(length(A.inds), chunk)]
+    else
+        chunk_i += 1
+    end
+    return A.arrays[1][1], (i, chunk, chunk_i, chunk_len, length(A))
 end
 
 @inline function Base.iterate(A::ChainedVector, (i, chunk, chunk_i, chunk_len, len))
@@ -170,9 +181,10 @@ function Base.popfirst!(A::ChainedVector)
     return item
 end
 
-Base.@propagate_inbounds function Base.insert!(A::ChainedVector, i::Integer, item)
-    # special case inserting into empty array
-    if i == 1 && length(A) == 0
+Base.@propagate_inbounds function Base.insert!(A::ChainedVector{T, AT}, i::Integer, item) where {T, AT <: AbstractVector{T}}
+    if i == 1 && length(A.arrays) == 0
+        push!(A.arrays, similar(AT, 0))
+        push!(A.inds, 0)
         chunk, ix = 1, 1
     else
         @boundscheck checkbounds(A, i)
