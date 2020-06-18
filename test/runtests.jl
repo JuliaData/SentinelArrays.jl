@@ -125,3 +125,120 @@ t = SentinelMatrix{Float64}(undef, (10, 10))
 @test size(t) == (10, 10)
 
 end # @testset
+
+@testset "ChainedVector" begin
+
+x = ChainedVector([[1,2,3], [4,5,6], [7,8,9,10]])
+@test x == 1:10
+@test length(x) == 10
+
+x[1] = 0
+x[end] = 11
+@test x[1] == 0
+@test x[end] == 11
+
+@test copy(x) == x
+empty!(x)
+@test length(x) == 0
+@test copy(x) == x
+
+@test_throws ArgumentError resize!(x, -1)
+resize!(x, 10)
+@test length(x) == 10
+resize!(x, 20)
+@test length(x) == 20
+resize!(x, 15)
+@test length(x) == 15
+resize!(x, 5)
+@test length(x) == 5
+
+push!(x, 1)
+@test x[end] == 1
+empty!(x)
+push!(x, 1)
+@test x[1] == x[end] == 1
+
+pushfirst!(x, 2)
+@test x[1] == 2
+empty!(x)
+pushfirst!(x, 2)
+@test x[1] == x[end] == 2
+pushfirst!(x, 3)
+@test x[1] == 3
+
+@test pop!(x) == 2
+@test popfirst!(x) == 3
+@test isempty(x)
+
+@test_throws BoundsError insert!(x, 0, 1)
+@test_throws BoundsError insert!(x, 2, 1)
+insert!(x, 1, 1)
+@test x[1] == 1
+insert!(x, 1, 2)
+@test x[1] == 2
+
+x = ChainedVector([[1,2,3], [4,5,6], [7,8,9,10]])
+y = ChainedVector([[11,12,13], [14,15,16], [17,18,19,20]])
+
+z = vcat(x, y)
+@test length(z) == 20
+@test z == 1:20
+
+z = ChainedVector([[21,22,23], [24,25,26], [27,28,29,30]])
+a = vcat(x, y, z)
+@test length(a) == 30
+@test a == 1:30
+
+empty!(x)
+z = vcat(x, y)
+@test z == y
+
+x = ChainedVector([[1,2,3], [4,5,6], [7,8,9,10]])
+append!(x, y)
+@test length(x) == 20
+@test x == 1:20
+
+x = ChainedVector([[1,2,3], [4,5,6], [7,8,9,10]])
+append!(x, collect(11:20))
+@test length(x) == 20
+@test x == 1:20
+
+x = ChainedVector([[1,2,3], [4,5,6], [7,8,9,10]])
+append!(x, 11:20)
+@test length(x) == 20
+@test x == 1:20
+
+empty!(x)
+append!(x, y)
+@test x == y
+
+x = ChainedVector([[1,2,3], [4,5,6], [7,8,9,10]])
+y = ChainedVector([[11,12,13], [14,15,16], [17,18,19,20]])
+
+prepend!(y, x)
+@test length(y) == 20
+@test y == 1:20
+
+y = ChainedVector([[11,12,13], [14,15,16], [17,18,19,20]])
+prepend!(y, collect(1:10))
+@test length(y) == 20
+@test y == 1:20
+
+y = ChainedVector([[11,12,13], [14,15,16], [17,18,19,20]])
+prepend!(y, 1:10)
+@test length(y) == 20
+@test y == 1:20
+
+empty!(y)
+prepend!(y, x)
+@test y == x
+
+x = ChainedVector([[1,2,3], [4,5,6], [7,8,9,10]])
+deleteat!(x, 1)
+@test x[1] == 2
+deleteat!(x, 1:4)
+@test x == 6:10
+deleteat!(x, [2, 4])
+@test x == [6, 8, 10]
+
+end

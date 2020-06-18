@@ -1,0 +1,229 @@
+"""
+    ChainedVector(arrays::Vector{<:AbstractVector})
+
+Create a `ChainedVector` of a `Vector` of homogenously-typed `AbstractVector`.
+The "chain" of input vectors will be treated as a single, long vector.
+A full set of typical mutable operations are supported (e.g. `push!`, `append!`, etc.).
+
+As implementation details, mutable operations on single elements (e.g. `setindex!`, `push!`)
+operate in-place or mutate an existing chained array, while `append!`/`prepend!` are optimized
+to "chain" the incoming array to the existing chained arrays.
+"""
+struct ChainedVector{T, A <: AbstractVector{T}} <: AbstractVector{T}
+    arrays::Vector{A}
+    inds::Vector{Int}
+end
+
+function ChainedVector(arrays::Vector{A}) where {A <: AbstractVector{T}} where {T}
+    n = length(arrays)
+    inds = Vector{Int}(undef, n)
+    x = 0
+    @inbounds for i = 1:n
+        x += length(arrays[i])
+        inds[i] = x
+    end
+    return ChainedVector{T, A}(arrays, inds)
+end
+
+Base.IndexStyle(::Type{ChainedVector}) = Base.IndexLinear()
+Base.size(x::ChainedVector) = (length(x.inds) == 0 ? 0 : x.inds[end],)
+
+@inline function index(A::ChainedVector, i::Integer)
+    chunk = searchsortedfirst(A.inds, i)
+    @inbounds x = A.arrays[chunk][i - (chunk == 1 ? 0 : A.inds[chunk - 1])]
+    return chunk, i - (chunk == 1 ? 0 : A.inds[chunk - 1])
+end
+
+Base.@propagate_inbounds function Base.getindex(A::ChainedVector, i::Integer)
+    @boundscheck checkbounds(A, i)
+    chunk, ix = index(A, i)
+    @inbounds x = A.arrays[chunk][ix]
+    return x
+end
+
+Base.@propagate_inbounds function Base.setindex!(A::ChainedVector, v, i::Integer)
+    @boundscheck checkbounds(A, i)
+    chunk, ix = index(A, i)
+    @inbounds A.arrays[chunk][ix] = v
+    return v
+end
+
+# other AbstractArray functions
+function Base.empty!(A::ChainedVector)
+    empty!(A.arrays)
+    empty!(A.inds)
+    return A
+end
+
+function Base.copy(A::ChainedVector{T, AT}) where {T, AT}
+    B = similar(AT, length(A))
+    off = 1
+    for arr in A.arrays
+        n = length(arr)
+        copyto!(B, off, arr, 1, n)
+        off += n
+    end
+    return B
+end
+
+function Base.resize!(A::ChainedVector{T, AT}, len) where {T, AT}
+    len >= 0 || throw(ArgumentError("`len` must be >= 0 when resizing ChainedVector"))
+    len′ = length(A)
+    if len′ < len
+        # growing
+        push!(A.arrays, similar(AT, len - len′))
+        push!(A.inds, len)
+    else
+        # shrinking
+        chunk = searchsortedfirst(A.inds, len)
+        # get rid of any excess chunks
+        resize!(A.arrays, chunk)
+        resize!(A.inds, chunk)
+        # resize individual chunk
+        resize!(A.arrays[chunk], A.inds[chunk] - len)
+        A.inds[chunk] -= A.inds[chunk] - len
+    end
+    return A
+end
+
+function Base.push!(A::ChainedVector{T, AT}, val) where {T, AT}
+    if length(A.arrays) == 0
+        push!(A.arrays, similar(AT, 0))
+        push!(A.inds, 0)
+    end
+    @inbounds push!(A.arrays[end], val)
+    @inbounds A.inds[end] += 1
+    return A
+end
+
+function Base.pushfirst!(A::ChainedVector{T, AT}, val) where {T, AT}
+    if length(A.arrays) == 0
+        push!(A.arrays, similar(AT, 0))
+        push!(A.inds, 0)
+    end
+    @inbounds pushfirst!(A.arrays[1], val)
+    for i = 1:length(A.inds)
+        @inbounds A.inds[i] += 1
+    end
+    return A
+end
+
+Base.@propagate_inbounds function Base.deleteat!(A::ChainedVector, i::Integer)
+    @boundscheck checkbounds(A, i)
+    chunk, ix = index(A, i)
+    deleteat!(A.arrays[chunk], ix)
+    for j = chunk:length(A.inds)
+        @inbounds A.inds[j] -= 1
+    end
+    return A
+end
+
+Base.@propagate_inbounds function Base.deleteat!(A::ChainedVector, inds)
+    @boundscheck checkbounds(A, first(inds))
+    @boundscheck checkbounds(A, last(inds))
+    for i in reverse(inds)
+        deleteat!(A, i)
+    end
+    return A
+end
+
+function Base.pop!(A::ChainedVector)
+    if isempty(A)
+        throw(ArgumentError("array must be non-empty"))
+    end
+    item = A[end]
+    deleteat!(A, length(A))
+    return item
+end
+
+function Base.popfirst!(A::ChainedVector)
+    if isempty(A)
+        throw(ArgumentError("array must be non-empty"))
+    end
+    item = A[1]
+    deleteat!(A, 1)
+    return item
+end
+
+Base.@propagate_inbounds function Base.insert!(A::ChainedVector, i::Integer, item)
+    # special case inserting into empty array
+    if i == 1 && length(A) == 0
+        chunk, ix = 1, 1
+    else
+        @boundscheck checkbounds(A, i)
+        chunk, ix = index(A, i)
+    end
+    insert!(A.arrays[chunk], ix, item)
+    for j = chunk:length(A.inds)
+        @inbounds A.inds[j] += 1
+    end
+    return A
+end
+
+function Base.vcat(A::ChainedVector{T, AT}, arrays::ChainedVector{T, AT}...) where {T, AT <: AbstractVector{T}}
+    newarrays = vcat(A.arrays, map(x->x.arrays, arrays)...)
+    n = length(A.inds)
+    inds = Vector{Int}(undef, n + sum(x->length(x.inds), arrays))
+    copyto!(inds, 1, A.inds, 1, n)
+    m = n + 1
+    for x in arrays
+        for y in x.arrays
+            @inbounds inds[m] = ((m - 1) == 0 ? 0 : inds[m - 1]) + length(y)
+            m += 1
+        end
+    end
+    return ChainedVector{T, AT}(newarrays, inds)
+end
+
+function Base.append!(A::ChainedVector{T, AT}, B::AT) where {T, AT <: AbstractVector{T}}
+    push!(A.arrays, B)
+    push!(A.inds, A.inds[end] + length(B))
+    return A
+end
+
+function Base.append!(A::ChainedVector{T, AT}, B::ChainedVector{T, AT}) where {T, AT <: AbstractVector{T}}
+    append!(A.arrays, B.arrays)
+    n = length(A.inds)
+    m = length(B.inds)
+    resize!(A.inds, n + m)
+    for i = 1:m
+        @inbounds A.inds[n + i] = ((n + i - 1) == 0 ? 0 : A.inds[n + i - 1]) + length(B.arrays[i])
+    end
+    return A
+end
+
+function Base.append!(A::ChainedVector{T}, B) where {T}
+    for x in B
+        push!(A, x)
+    end
+    return A
+end
+
+function Base.prepend!(A::ChainedVector{T, AT}, B::AT) where {T, AT <: AbstractVector{T}}
+    pushfirst!(A.arrays, B)
+    n = length(B)
+    pushfirst!(A.inds, n)
+    for i = 2:length(A.inds)
+        @inbounds A.inds[i] += n
+    end
+    return A
+end
+
+function Base.prepend!(A::ChainedVector{T, AT}, B::ChainedVector{T, AT}) where {T, AT <: AbstractVector{T}}
+    prepend!(A.arrays, B.arrays)
+    n = length(A.inds)
+    m = length(B.inds)
+    M = length(B)
+    prepend!(A.inds, B.inds)
+    for i = 1:n
+        @inbounds A.inds[m + i] += M
+    end
+    return A
+end
+
+function Base.prepend!(A::ChainedVector{T}, B) where {T}
+    for (i, x) in enumerate(B)
+        insert!(A, i, x)
+    end
+    return A
+end
