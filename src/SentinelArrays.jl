@@ -2,7 +2,7 @@ module SentinelArrays
 
 using Dates, Random
 
-export SentinelArray, SentinelMatrix, SentinelVector, SentinelCollisionError, ChainedVector
+export SentinelArray, SentinelMatrix, SentinelVector, SentinelCollisionError, ChainedVector, MissingVector
 
 const RNG = [MersenneTwister()]
 
@@ -392,5 +392,6 @@ function Base.popfirst!(A::SentinelVector)
 end
 
 include("chainedvector.jl")
+include("missingvector.jl")
 
 end # module
