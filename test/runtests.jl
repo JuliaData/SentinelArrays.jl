@@ -257,3 +257,93 @@ x = ChainedVector([[1,2,3], [4,5,6], [7,8,9,10]])
 @test sum(i for i in x) == sum(copy(x))
 
 end
+
+@testset "MissingVector" begin
+
+x = MissingVector(10)
+@test all(x .=== missing)
+@test length(x) == 10
+
+x[1] = missing
+x[end] = missing
+@test x[1] === missing
+@test x[end] === missing
+
+@test isequal(copy(x), x)
+empty!(x)
+@test length(x) == 0
+@test isequal(copy(x), x)
+
+@test_throws ArgumentError resize!(x, -1)
+resize!(x, 10)
+@test length(x) == 10
+
+push!(x, missing)
+@test x[end] === missing
+empty!(x)
+push!(x, missing)
+@test x[1] === x[end] === missing
+
+pushfirst!(x, missing)
+@test x[1] === missing
+empty!(x)
+pushfirst!(x, missing)
+@test x[1] === x[end] === missing
+pushfirst!(x, missing)
+
+@test pop!(x) === missing
+@test popfirst!(x) === missing
+@test isempty(x)
+
+@test_throws BoundsError insert!(x, 0, missing)
+@test_throws BoundsError insert!(x, 2, missing)
+insert!(x, 1, missing)
+@test x[1] === missing
+insert!(x, 1, missing)
+@test x[1] === missing
+
+x = MissingVector(10)
+y = MissingVector(10)
+
+z = vcat(x, y)
+@test length(z) == 20
+
+empty!(x)
+z = vcat(x, y)
+@test isequal(z, y)
+
+x = MissingVector(10)
+append!(x, y)
+@test length(x) == 20
+
+x = MissingVector(10)
+append!(x, (missing for _ = 1:10))
+@test length(x) == 20
+
+empty!(x)
+append!(x, y)
+@test isequal(x, y)
+
+x = MissingVector(10)
+y = MissingVector(10)
+
+prepend!(y, x)
+@test length(y) == 20
+
+y = MissingVector(10)
+prepend!(y, (missing for _ = 1:10))
+@test length(y) == 20
+
+empty!(y)
+prepend!(y, x)
+@test isequal(y, x)
+
+x = MissingVector(10)
+deleteat!(x, 1)
+@test x[1] === missing
+deleteat!(x, 1:4)
+@test length(x) == 5
+deleteat!(x, [2, 4])
+@test length(x) == 3
+
+end
