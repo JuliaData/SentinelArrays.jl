@@ -163,6 +163,16 @@ Base.@propagate_inbounds function Base.deleteat!(A::ChainedVector, inds)
     return A
 end
 
+Base.@propagate_inbounds function Base.deleteat!(A::ChainedVector, inds::AbstractVector{Bool})
+    length(inds) == length(A) || throw(BoundsError(A, inds))
+    for i = length(A):-1:1
+        if inds[i]
+            deleteat!(A, i)
+        end
+    end
+    return A
+end
+
 function Base.pop!(A::ChainedVector)
     if isempty(A)
         throw(ArgumentError("array must be non-empty"))

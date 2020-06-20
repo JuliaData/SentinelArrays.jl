@@ -12,6 +12,8 @@ fill!(x, missing)
 sent = x.sentinel
 x[1] = x.sentinel
 @test x[1] === sent
+r = reverse(x)
+@test x.sentinel == r.sentinel
 
 @test size(x) == (10,)
 x[1] = 3
@@ -23,6 +25,26 @@ resize!(x, length(x) + 1)
 x = SentinelVector{Int64}(undef, 1)
 x[1] = missing
 @test x[1] === missing
+
+y = similar(x)
+@test typeof(parent(x)) == typeof(parent(y))
+@test y[1] === missing
+y = similar(x, 20)
+@test typeof(parent(x)) == typeof(parent(y))
+@test y[1] === missing
+y = similar(x, (10, 10))
+@test eltype(parent(x)) == eltype(parent(y))
+@test y[1] === missing
+y = similar(x, Float64)
+@test eltype(parent(y)) === Float64
+@test y[1] === missing
+y = similar(x, Float64, 10)
+@test eltype(parent(y)) === Float64
+@test y[1] === missing
+@test length(y) == 10
+y = similar(x, Float64, (10, 10))
+@test eltype(parent(y)) === Float64
+@test y[1] === missing
 
 x = SentinelVector{Union{Bool, Missing}}(undef, 1, missing, missing)
 @test x[1] === missing
@@ -67,7 +89,17 @@ insert!(x, 1, missing)
 insert!(x, length(x) + 1, "pirate")
 @test x[end] == "pirate"
 
-@test splice!(x, length(x)) == "pirate"
+@test splice!(x, length(x), ["pirate2"]) == "pirate"
+@test splice!(x, length(x)) == "pirate2"
+@test splice!(x, length(x), ["pirate3", "pirate4"]) === missing
+@test x[end-1:end] == ["pirate3", "pirate4"]
+@test typeof(x[end-1:end]) == typeof(x)
+
+@test splice!(x, (length(x)-1):length(x), ["pirate5", "pirate6"]) == ["pirate3", "pirate4"]
+@test splice!(x, (length(x)-1):length(x), ["pirate7"]) == ["pirate5", "pirate6"]
+@test splice!(x, length(x), ["pirate8", "pirate9"]) == "pirate7"
+@test splice!(x, (length(x)-1):length(x), ["pirate10", "pirate11", "pirate12"]) == ["pirate8", "pirate9"]
+@test x[end-2:end] == ["pirate10", "pirate11", "pirate12"]
 
 t = [SentinelVector{Int64}(undef, 10), SentinelVector{Int64}(undef, 10), SentinelVector{Int64}(undef, 5)]
 sent = t[1].sentinel
@@ -256,6 +288,12 @@ deleteat!(x, 4)
 x = ChainedVector([[1,2,3], [4,5,6], [7,8,9,10]])
 @test sum(i for i in x) == sum(copy(x))
 
+x = ChainedVector([[1,2,3], [4,5,6], [7,8,9,10]])
+b = [true, false, false, false, false, false, false, false, false, false]
+deleteat!(x, b)
+@test x[1] == 2
+@test length(x) == 9
+
 end
 
 @testset "MissingVector" begin
@@ -268,6 +306,13 @@ x[1] = missing
 x[end] = missing
 @test x[1] === missing
 @test x[end] === missing
+
+y = similar(x)
+@test typeof(y) == MissingVector
+@test length(y) == 10
+y = similar(x, 20)
+@test typeof(y) == MissingVector
+@test length(y) == 20
 
 @test isequal(copy(x), x)
 empty!(x)
@@ -345,5 +390,11 @@ deleteat!(x, 1:4)
 @test length(x) == 5
 deleteat!(x, [2, 4])
 @test length(x) == 3
+
+m = similar(x)
+@test length(m) == length(x)
+m = similar(x, Missing)
+@test length(m) == length(x)
+@test typeof(m[1:3]) == typeof(m)
 
 end

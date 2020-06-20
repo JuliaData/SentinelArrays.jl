@@ -15,10 +15,14 @@ Base.@propagate_inbounds function Base.setindex!(x::MissingVector, ::Missing, i:
     missing
 end
 
+Base.similar(x::MissingVector, ::Type{Missing}, dims::Dims{N}) where {N} = MissingVector(dims[1])
+
 function Base.empty!(x::MissingVector)
     x.len = 0
     return x
 end
+
+Base.empty(m::MissingVector, T) = MissingVector(0)
 
 function Base.resize!(x::MissingVector, len)
     len >= 0 || throw(ArgumentError("`len` must be >= 0 when resizing MissingVector"))
@@ -51,6 +55,15 @@ Base.@propagate_inbounds function Base.deleteat!(x::MissingVector, inds)
     return x
 end
 
+Base.@propagate_inbounds function Base.deleteat!(x::MissingVector, inds::AbstractVector{Bool})
+    length(inds) == length(x) || throw(BoundsError(x, inds))
+    for i = length(x):-1:1
+        if inds[i]
+            deleteat!(x, i)
+        end
+    end
+    return x
+end
 
 function Base.pop!(x::MissingVector)
     if isempty(x)
