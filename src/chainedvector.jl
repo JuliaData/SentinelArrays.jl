@@ -25,7 +25,7 @@ function ChainedVector(arrays::Vector{A}) where {A <: AbstractVector{T}} where {
     return ChainedVector{T, A}(arrays, inds)
 end
 
-Base.IndexStyle(::Type{ChainedVector}) = Base.IndexLinear()
+Base.IndexStyle(::Type{<:ChainedVector}) = Base.IndexLinear()
 Base.size(x::ChainedVector) = (length(x.inds) == 0 ? 0 : x.inds[end],)
 
 @inline function index(A::ChainedVector, i::Integer)

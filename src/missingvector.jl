@@ -22,7 +22,7 @@ function Base.empty!(x::MissingVector)
     return x
 end
 
-Base.empty(m::MissingVector, T) = MissingVector(0)
+Base.empty(m::MissingVector, ::Missing) = MissingVector(0)
 
 function Base.resize!(x::MissingVector, len)
     len >= 0 || throw(ArgumentError("`len` must be >= 0 when resizing MissingVector"))
