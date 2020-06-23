@@ -25,7 +25,7 @@ function ChainedVector(arrays::Vector{A}) where {A <: AbstractVector{T}} where {
     return ChainedVector{T, A}(arrays, inds)
 end
 
-Base.IndexStyle(::Type{ChainedVector}) = Base.IndexLinear()
+Base.IndexStyle(::Type{<:ChainedVector}) = Base.IndexLinear()
 Base.size(x::ChainedVector) = (length(x.inds) == 0 ? 0 : x.inds[end],)
 
 @inline function index(A::ChainedVector, i::Integer)
@@ -159,6 +159,16 @@ Base.@propagate_inbounds function Base.deleteat!(A::ChainedVector, inds)
     @boundscheck checkbounds(A, last(inds))
     for i in reverse(inds)
         deleteat!(A, i)
+    end
+    return A
+end
+
+Base.@propagate_inbounds function Base.deleteat!(A::ChainedVector, inds::AbstractVector{Bool})
+    length(inds) == length(A) || throw(BoundsError(A, inds))
+    for i = length(A):-1:1
+        if inds[i]
+            deleteat!(A, i)
+        end
     end
     return A
 end

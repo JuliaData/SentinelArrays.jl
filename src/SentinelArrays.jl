@@ -113,8 +113,11 @@ Base.convert(::Type{SentinelArray}, arr::AbstractArray{T}) where {T} = convert(S
 Base.convert(::Type{SentinelVector{T}}, arr::AbstractArray) where {T} = convert(SentinelArray{T}, arr)
 
 function Base.similar(A::SentinelArray{T, N, S, V}, ::Type{T2}, dims::Dims{N2}) where {T, N, S, V, T2, N2}
-    SentinelArray(similar(parent(A), T2, dims), A.sentinel, A.value)
+    SentinelArray{Core.Compiler.typesubtract(T2, V)}(undef, dims)
 end
+
+Base.empty(A::SentinelVector{T}, ::Type{U}=T) where {T, U} = SentinelVector{U}(undef, 0)
+# Base.emptymutable(A::SentinelVector{T}, ::Type{U}=T) where {T, U} = SentinelVector{U}(undef, 0)
 
 # conversion between SentinelArrays
 function recode!(A::SentinelArray{T, N, S, V}, newsentinel::S) where {T, N, S, V}
@@ -225,6 +228,10 @@ Base.@propagate_inbounds function Base.setindex!(A::SentinelArray{T, N, S, V}, v
 end
 
 # other AbstractArray functions
+function Base.reverse(A::SentinelVector, s=first(LinearIndices(A)), n=last(LinearIndices(A)))
+    return SentinelArray(reverse(parent(A), s, n), A.sentinel, A.value)
+end
+
 function Base.empty!(A::SentinelVector)
     empty!(parent(A))
     return A
@@ -269,11 +276,6 @@ function Base.insert!(A::SentinelVector, idx::Integer, item)
     _growat!(A, idx, 1)
     @inbounds A[idx] = item
     return A
-end
-
-function Base.vcat(A::SentinelVector{T, S, V}, B::SentinelVector{T, S, V}...) where {T, S, V}
-    newsentinel!(A, B...; force=false)
-    return SentinelArray(vcat(parent(A), map(parent, B)...), A.sentinel, A.value)
 end
 
 function Base.append!(A::SentinelVector{T, S, V}, B::SentinelVector{T, S, V}) where {T, S, V}
