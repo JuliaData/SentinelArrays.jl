@@ -393,6 +393,7 @@ function Base.popfirst!(A::SentinelVector)
     return item
 end
 
+include("broadcasting.jl")
 include("chainedvector.jl")
 include("missingvector.jl")
 
