@@ -393,7 +393,12 @@ function Base.popfirst!(A::SentinelVector)
     return item
 end
 
-include("broadcasting.jl")
+Base.BroadcastStyle(::Type{<:SentinelArray}) = Broadcast.ArrayStyle{SentinelArray}()
+
+function Base.similar(bc::Broadcast.Broadcasted{Broadcast.ArrayStyle{SentinelArray}}, ::Type{ElType}) where ElType
+    SentinelArray(similar(Array{ElType}, axes(bc)))
+end
+
 include("chainedvector.jl")
 include("missingvector.jl")
 
