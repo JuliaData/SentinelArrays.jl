@@ -199,6 +199,38 @@ empty!(t)
 @test_throws ArgumentError pop!(t)
 @test_throws ArgumentError popfirst!(t)
 
+x = SentinelArray(ones(3))
+
+# broadcasting
+@test x .+ x == 2 * ones(3)
+@test x .+ x .+ x == 3 * ones(3)
+@test (x .= 0 .* x .+ 7) == 7 * ones(3)
+
+v = SentinelArray(zeros(3,))
+m = SentinelArray(ones(3, 3))
+s = 0
+
+@test v .+ m == ones(3, 3) == m .+ v
+@test s .+ m == ones(3, 3) == m .+ s
+@test s .+ v .+ m == ones(3, 3) == m .+ s .+ v
+
+casts = (
+    SentinelArray,  # Named Matrix
+    x->SentinelArray(x[:, 1]),  # Named Vector
+    x->SentinelArray(x[:, 1:1]),  # Named Single Column Matrix
+    identity, # Matrix
+    x->x[:, 1], # Vector
+    x->x[:, 1:1], # Single Column Matrix
+    first, # Scalar
+    )
+for (T1, T2, T3) in Iterators.product(casts, casts, casts)
+    all(isequal(identity), (T1, T2, T3)) && continue
+    !any(isequal(SentinelArray), (T1, T2, T3)) && continue
+
+    total = T1(ones(3, 6)) .+ T2(2ones(3, 6)) .+ T3(3ones(3, 6))
+    @test total == 6ones(3, 6)
+end
+
 end # @testset
 
 @testset "ChainedVector" begin

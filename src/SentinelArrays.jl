@@ -73,7 +73,7 @@ const SentinelMatrix{T} = SentinelArray{T, 2}
 defaultvalue(T) = missing
 
 newsentinel(T) = !isbitstype(T) ? undef : reinterpret(T, rand(RNG[Threads.threadid()], UInt8, sizeof(T)))[1]
-defaultsentinel(T) = !isbitstype(T) ? undef : reinterpret(T, fill(0xff, sizeof(T)))[1]
+defaultsentinel(T) = !isbitstype(T) ? undef : Base.issingletontype(T) ? throw(ArgumentError("singleton type $T not allowed in a SentinelArray")) : reinterpret(T, fill(0xff, sizeof(T)))[1]
 
 # constructors
 function SentinelArray{T, N}(::UndefInitializer, dims::Tuple{Vararg{Integer}}, s=nothing, v=defaultvalue(T)) where {T, N}
@@ -391,6 +391,16 @@ function Base.popfirst!(A::SentinelVector)
     item = A[1]
     deleteat!(A, 1)
     return item
+end
+
+Base.BroadcastStyle(::Type{<:SentinelArray}) = Broadcast.ArrayStyle{SentinelArray}()
+
+function Base.similar(bc::Broadcast.Broadcasted{Broadcast.ArrayStyle{SentinelArray}}, ::Type{ElType}) where ElType
+    SentinelArray(similar(Array{ElType}, axes(bc)))
+end
+
+function Base.similar(bc::Broadcast.Broadcasted{Broadcast.ArrayStyle{SentinelArray}}, ::Type{Bool})
+    similar(Array{Bool}, axes(bc))
 end
 
 include("chainedvector.jl")
