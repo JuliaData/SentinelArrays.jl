@@ -406,4 +406,7 @@ end
 include("chainedvector.jl")
 include("missingvector.jl")
 
+include("precompile.jl")
+_precompile_()
+
 end # module
