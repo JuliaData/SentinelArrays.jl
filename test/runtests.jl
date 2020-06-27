@@ -231,6 +231,10 @@ for (T1, T2, T3) in Iterators.product(casts, casts, casts)
     @test total == 6ones(3, 6)
 end
 
+s = SentinelVector{Int}(undef, 2)
+@test isequal(max.(s, 0), [missing, missing])
+@test (s .=== missing) isa Vector{Bool}
+
 end # @testset
 
 @testset "ChainedVector" begin
