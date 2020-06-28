@@ -114,7 +114,11 @@ Base.convert(::Type{SentinelArray}, arr::AbstractArray{T}) where {T} = convert(S
 Base.convert(::Type{SentinelVector{T}}, arr::AbstractArray) where {T} = convert(SentinelArray{T}, arr)
 
 function Base.similar(A::SentinelArray{T, N, S, V}, ::Type{T2}, dims::Dims{N2}) where {T, N, S, V, T2, N2}
-    SentinelArray{Core.Compiler.typesubtract(T2, V)}(undef, dims)
+    if T2 >: V
+        SentinelArray{Core.Compiler.typesubtract(T2, V)}(undef, dims)
+    else
+        similar(parent(A), T2, dims)
+    end
 end
 
 Base.empty(A::SentinelVector{T}, ::Type{U}=T) where {T, U} = SentinelVector{U}(undef, 0)

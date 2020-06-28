@@ -35,14 +35,14 @@ y = similar(x, 20)
 y = similar(x, (10, 10))
 @test eltype(parent(x)) == eltype(parent(y))
 @test y[1] === missing
-y = similar(x, Float64)
+y = similar(x, Union{Missing, Float64})
 @test eltype(parent(y)) === Float64
 @test y[1] === missing
-y = similar(x, Float64, 10)
+y = similar(x, Union{Missing, Float64}, 10)
 @test eltype(parent(y)) === Float64
 @test y[1] === missing
 @test length(y) == 10
-y = similar(x, Float64, (10, 10))
+y = similar(x, Union{Missing, Float64}, (10, 10))
 @test eltype(parent(y)) === Float64
 @test y[1] === missing
 
