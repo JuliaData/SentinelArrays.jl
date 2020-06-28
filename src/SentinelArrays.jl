@@ -100,6 +100,7 @@ end
 SentinelArray{T, N}(::UndefInitializer, dims::Vararg{Integer, N}) where {T, N} = SentinelArray{T, N}(undef, dims)
 SentinelArray{T}(::UndefInitializer, dims::Integer...) where {T} = SentinelArray{T, length(dims)}(undef, dims)
 SentinelVector{T}(::UndefInitializer, len::Int, s=nothing, v=defaultvalue(T)) where {T} = SentinelArray{T, 1}(undef, (len,), s, v)
+SentinelArray{T, N, S, V, A}(::UndefInitializer, dims::Dims) where {T, N, S, V, A} = SentinelArray{T}(undef, dims)
 
 function Base.convert(::Type{SentinelArray{T}}, arr::AbstractArray{T2, N}) where {T, T2, N}
     A = SentinelArray(Array{T, N}(undef, size(arr)))

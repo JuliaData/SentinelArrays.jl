@@ -5,6 +5,8 @@ end
 Base.IndexStyle(::Type{MissingVector}) = Base.IndexLinear()
 Base.size(x::MissingVector) = (x.len,)
 
+MissingVector(::UndefInitializer, dims::Dims) = MissingVector(dims[1])
+
 Base.@propagate_inbounds function Base.getindex(x::MissingVector, i::Int)
     @boundscheck checkbounds(x, i)
     missing
