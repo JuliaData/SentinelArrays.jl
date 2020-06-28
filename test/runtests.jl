@@ -235,6 +235,13 @@ s = SentinelVector{Int}(undef, 2)
 @test isequal(max.(s, 0), [missing, missing])
 @test (s .=== missing) isa Vector{Bool}
 
+s = SentinelArray(collect(1:5))
+c = ChainedVector([s, s, s])
+c2 = copy(c)
+@test length(c) == length(c2)
+@test c2 isa SentinelVector
+
+
 end # @testset
 
 @testset "ChainedVector" begin
@@ -495,5 +502,11 @@ deleteat!(x, [true, true, false])
 empty!(x)
 @test_throws ArgumentError pop!(x)
 @test_throws ArgumentError popfirst!(x)
+
+m = MissingVector(5)
+c = ChainedVector([m, m, m])
+c2 = copy(c)
+@test length(c) == length(c2)
+@test c2 isa MissingVector
 
 end
