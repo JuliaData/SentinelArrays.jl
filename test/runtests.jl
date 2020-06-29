@@ -45,6 +45,8 @@ y = similar(x, Union{Missing, Float64}, 10)
 y = similar(x, Union{Missing, Float64}, (10, 10))
 @test eltype(parent(y)) === Float64
 @test y[1] === missing
+y = similar(x, Float64, 10)
+@test y isa Vector{Float64}
 
 x = SentinelArray{Float64, 2}(undef, 10, 10)
 @test size(x) == (10, 10)
