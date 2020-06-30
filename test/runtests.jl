@@ -235,7 +235,7 @@ end
 
 s = SentinelVector{Int}(undef, 2)
 @test isequal(max.(s, 0), [missing, missing])
-@test (s .=== missing) isa Vector{Bool}
+@test (s .=== missing) isa BitArray
 
 s = SentinelArray(collect(1:5))
 c = ChainedVector([s, s, s])

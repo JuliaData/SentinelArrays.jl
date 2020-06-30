@@ -398,20 +398,6 @@ function Base.popfirst!(A::SentinelVector)
     return item
 end
 
-Base.BroadcastStyle(::Type{<:SentinelArray}) = Broadcast.ArrayStyle{SentinelArray}()
-
-function Base.similar(bc::Broadcast.Broadcasted{Broadcast.ArrayStyle{SentinelArray}}, ::Type{ElType}) where ElType
-    if Base.issingletontype(ElType)
-        similar(Array{ElType}, axes(bc))
-    else
-        SentinelArray(similar(Array{ElType}, axes(bc)))
-    end
-end
-
-function Base.similar(bc::Broadcast.Broadcasted{Broadcast.ArrayStyle{SentinelArray}}, ::Type{Bool})
-    similar(Array{Bool}, axes(bc))
-end
-
 include("chainedvector.jl")
 include("missingvector.jl")
 
