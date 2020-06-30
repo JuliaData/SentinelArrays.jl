@@ -10,7 +10,7 @@ using SentinelArrays, Test, Random
 # then the element getting set would end up `missing` (because it == the sentinel value)
 # instead of the sentinel value getting cycled to something else
 Random.seed!(SentinelArrays.RNG[1], 0)
-x = SentinelVector{Int}(undef, 1)
+x = SentinelVector{Int64}(undef, 1)
 x[1] = 1
 x.sentinel = 1369352191816061504
 x[1] = 1369352191816061504
