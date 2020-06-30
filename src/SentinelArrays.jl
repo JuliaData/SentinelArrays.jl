@@ -157,14 +157,16 @@ function newsentinel!(arrays::SentinelArray{T, N, S, V}...; force::Bool=true) wh
     newsent = newsentinel(T)
     # find a new sentinel that doesn't already exist in parent
     while true
-        foundnewsent = false
-        for A in arrays
-            p = parent(A)
-            for i in eachindex(p)
-                @inbounds z = p[i]
-                if eq(z, newsent)
-                    foundnewsent = true
-                    break
+        foundnewsent = eq(oldsent, newsent)
+        if !foundnewsent
+            for A in arrays
+                p = parent(A)
+                for i in eachindex(p)
+                    @inbounds z = p[i]
+                    if eq(z, newsent)
+                        foundnewsent = true
+                        break
+                    end
                 end
             end
         end
