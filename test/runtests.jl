@@ -1,6 +1,20 @@
-using SentinelArrays, Test
+using SentinelArrays, Test, Random
 
 @testset "SentinelArrays" begin
+
+# this is a very rare corner case
+# we put this test first because it relies on
+# the seeded random number generator for thread 1
+# the issue is if we had an underlying array of non-sentinel values
+# then tried to `setindex!` to the _NEXT_ chosen sentinel value
+# then the element getting set would end up `missing` (because it == the sentinel value)
+# instead of the sentinel value getting cycled to something else
+Random.seed!(SentinelArrays.RNG[1], 0)
+x = SentinelVector{Int64}(undef, 1)
+x[1] = 1
+x.sentinel = 1369352191816061504
+x[1] = 1369352191816061504
+@test x[1] == 1369352191816061504
 
 x = SentinelVector{Int}(undef, 10)
 fill!(x, missing)
