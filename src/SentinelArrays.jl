@@ -274,8 +274,23 @@ function Base.push!(A::SentinelVector, val)
     return A
 end
 
-function Base.deleteat!(A::SentinelVector, idx)
-    deleteat!(parent(A), idx)
+function Base.deleteat!(A::SentinelVector{T, S, V, AT}, inds) where {T, S, V, AT}
+    if inds isa Integer || inds isa UnitRange || S !== UndefInitializer
+        deleteat!(parent(A), inds)
+    elseif inds isa AbstractVector{Bool}
+        n = length(A)
+        length(inds) == n || throw(BoundsError(A, inds))
+        p = 1
+        for (q, i) in enumerate(inds)
+            @inbounds A[p] = A[q]
+            p += !i
+        end
+        deleteat!(parent(A), n - p + 1:n)
+    else
+        for ind in reverse(inds)
+            deleteat!(A, ind)
+        end
+    end
     return A
 end
 
