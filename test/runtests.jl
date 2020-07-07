@@ -95,6 +95,12 @@ x[1] = missing
 @test x[1] === missing
 
 x = SentinelVector{String}(undef, 10)
+deleteat!(x, [1,3,5,7,9])
+@test length(x) == 5
+deleteat!(x, [true, false, true, false, true])
+@test length(x) == 2
+
+x = SentinelVector{String}(undef, 10)
 @test x[1] === missing
 x[1] = "hey"
 @test x[1] == "hey"
