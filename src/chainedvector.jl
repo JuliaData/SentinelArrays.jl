@@ -30,7 +30,6 @@ Base.size(x::ChainedVector) = (length(x.inds) == 0 ? 0 : x.inds[end],)
 
 @inline function index(A::ChainedVector, i::Integer)
     chunk = searchsortedfirst(A.inds, i)
-    @inbounds x = A.arrays[chunk][i - (chunk == 1 ? 0 : A.inds[chunk - 1])]
     return chunk, i - (chunk == 1 ? 0 : A.inds[chunk - 1])
 end
 
