@@ -263,6 +263,10 @@ c2 = copy(c)
 @test length(c) == length(c2)
 @test c2 isa SentinelVector
 
+# deleteat! of SentinelArray w/ underlying ChainedVector w/ UndefInitializer
+x = SentinelArray(ChainedVector([Vector{String}(undef, 5)]))
+deleteat!(x, 1)
+@test length(x) == 4
 
 end # @testset
 
