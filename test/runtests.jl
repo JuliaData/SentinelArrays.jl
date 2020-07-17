@@ -413,6 +413,9 @@ deleteat!(x, b)
 @test x[1] == 2
 @test length(x) == 9
 
+deleteat!(x, Int[])
+@test length(x) == 9
+
 end
 
 @testset "MissingVector" begin
@@ -534,5 +537,8 @@ c = ChainedVector([m, m, m])
 c2 = copy(c)
 @test length(c) == length(c2)
 @test c2 isa MissingVector
+
+deleteat!(c2, Int[])
+@test length(c2) == 15
 
 end
