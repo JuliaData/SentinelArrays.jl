@@ -49,8 +49,6 @@ Base.@propagate_inbounds function Base.deleteat!(x::MissingVector, i::Integer)
 end
 
 Base.@propagate_inbounds function Base.deleteat!(x::MissingVector, inds)
-    @boundscheck checkbounds(x, first(inds))
-    @boundscheck checkbounds(x, last(inds))
     for i in reverse(inds)
         deleteat!(x, i)
     end

@@ -154,8 +154,6 @@ Base.@propagate_inbounds function Base.deleteat!(A::ChainedVector, i::Integer)
 end
 
 Base.@propagate_inbounds function Base.deleteat!(A::ChainedVector, inds)
-    @boundscheck checkbounds(A, first(inds))
-    @boundscheck checkbounds(A, last(inds))
     for i in reverse(inds)
         deleteat!(A, i)
     end
