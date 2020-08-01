@@ -423,6 +423,7 @@ end
 x = MissingVector(10)
 @test all(x .=== missing)
 @test length(x) == 10
+@test length(x) isa Int
 @test Base.IndexStyle(x) == Base.IndexLinear()
 
 y = similar(x, Missing, 5)

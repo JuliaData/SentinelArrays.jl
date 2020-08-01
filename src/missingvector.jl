@@ -1,5 +1,5 @@
 mutable struct MissingVector <: AbstractVector{Missing}
-    len::Int64
+    len::Int
 end
 
 Base.IndexStyle(::Type{MissingVector}) = Base.IndexLinear()
