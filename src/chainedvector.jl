@@ -31,7 +31,7 @@ Base.size(x::ChainedVector) = (length(x.inds) == 0 ? 0 : x.inds[end],)
 
 @inline function index(A::ChainedVector, i::Integer)
     chunk = searchsortedfirst(A.inds, i)
-    return chunk, i - (chunk == 1 ? 0 : A.inds[chunk - 1])
+    return chunk, i - (chunk == 1 ? 0 : @inbounds A.inds[chunk - 1])
 end
 
 Base.@propagate_inbounds function Base.getindex(A::ChainedVector, i::Integer)
@@ -169,8 +169,46 @@ Base.@propagate_inbounds function Base.deleteat!(A::ChainedVector, i::Integer)
 end
 
 Base.@propagate_inbounds function Base.deleteat!(A::ChainedVector, inds)
-    for i in reverse(inds)
-        deleteat!(A, i)
+    y = iterate(inds)
+    y === nothing && return A
+    i, s = y
+    chunk = 1
+    N = length(A.inds)
+    prevind = 0
+    ind = chunk > N ? 0 : A.inds[chunk]
+    todelete = Int[]
+    deleted = 0
+    while y !== nothing
+        # find chunk where deleting starts
+        while ind < i
+            chunk += 1
+            chunk > N && throw(BoundsError(A, i))
+            prevind = ind
+            @inbounds ind = A.inds[chunk]
+        end
+        # gather all indices for this chunk
+        while i <= ind
+            push!(todelete, i - prevind)
+            y = iterate(inds, s)
+            y === nothing && break
+            i, s = y
+        end
+        # delete indices from this chunk
+        deleted += length(todelete)
+        @inbounds A.inds[chunk] = ind - deleted
+        @inbounds deleteat!(A.arrays[chunk], todelete)
+        empty!(todelete)
+    end
+    # update unaffected chunks
+    for j = (chunk + 1):length(A.arrays)
+        A.inds[j] -= deleted
+    end
+    # check for empty chunks and remove
+    for j = length(A.inds):-1:1
+        if length(A.arrays[j]) == 0
+            deleteat!(A.arrays, j)
+            deleteat!(A.inds, j)
+        end
     end
     return A
 end
