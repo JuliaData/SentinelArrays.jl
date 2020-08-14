@@ -19,6 +19,7 @@ function ChainedVector(arrays::Vector{A}) where {A <: AbstractVector{T}} where {
     inds = Vector{Int}(undef, n)
     x = 0
     @inbounds for i = 1:n
+        # note that arrays[i] can have zero length
         x += length(arrays[i])
         inds[i] = x
     end
@@ -57,7 +58,6 @@ end
     while i > chunk_len
         chunk += 1
         @inbounds chunk_len = A.inds[chunk]
-        i <= chunk_len && break
     end
     x = A.arrays[chunk][1]
     # find next valid index

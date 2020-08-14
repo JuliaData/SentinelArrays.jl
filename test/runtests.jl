@@ -542,4 +542,28 @@ c2 = copy(c)
 deleteat!(c2, Int[])
 @test length(c2) == 15
 
+@testset "iteration protocol on ChainedVector" begin
+    @test isnothing(iterate(ChainedVector([[]])))
+    for len in 0:6
+        for j in 0:len
+            cv = ChainedVector([1:j, j+1:len])
+            for (i, v) in enumerate(cv)
+                @test i == v
+            end
+            for k in j:len
+                cv = ChainedVector([1:j, j+1:k, k+1:len])
+                for (i, v) in enumerate(cv)
+                    @test i == v
+                end
+                for l in k:len
+                    cv = ChainedVector([1:j, j+1:k, k+1:l, l+1:len])
+                    for (i, v) in enumerate(cv)
+                        @test i == v
+                    end
+                end
+            end
+        end
+    end
+end
+
 end
