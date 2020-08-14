@@ -19,6 +19,7 @@ function ChainedVector(arrays::Vector{A}) where {A <: AbstractVector{T}} where {
     inds = Vector{Int}(undef, n)
     x = 0
     @inbounds for i = 1:n
+        # note that arrays[i] can have zero length
         x += length(arrays[i])
         inds[i] = x
     end
@@ -50,18 +51,28 @@ end
 # efficient iteration
 @inline function Base.iterate(A::ChainedVector)
     length(A) == 0 && return nothing
-    i = 2
+    i = 1
     chunk = 1
     chunk_i = 1
     chunk_len = A.inds[1]
-    if i > chunk_len
+    while i > chunk_len
         chunk += 1
-        chunk_i = 1
-        @inbounds chunk_len = A.inds[min(length(A.inds), chunk)]
+        @inbounds chunk_len = A.inds[chunk]
+    end
+    x = A.arrays[chunk][1]
+    # find next valid index
+    i += 1
+    if i > chunk_len
+        while true
+            chunk += 1
+            chunk > length(A.inds) && break
+            @inbounds chunk_len = A.inds[chunk]
+            i <= chunk_len && break
+        end
     else
         chunk_i += 1
     end
-    return A.arrays[1][1], (i, chunk, chunk_i, chunk_len, length(A))
+    return x, (i, chunk, chunk_i, chunk_len, length(A))
 end
 
 @inline function Base.iterate(A::ChainedVector, (i, chunk, chunk_i, chunk_len, len))
@@ -69,9 +80,13 @@ end
     @inbounds x = A.arrays[chunk][chunk_i]
     i += 1
     if i > chunk_len
-        chunk += 1
         chunk_i = 1
-        @inbounds chunk_len = A.inds[min(length(A.inds), chunk)]
+        while true
+            chunk += 1
+            chunk > length(A.inds) && break
+            @inbounds chunk_len = A.inds[chunk]
+            i <= chunk_len && break
+        end
     else
         chunk_i += 1
     end
