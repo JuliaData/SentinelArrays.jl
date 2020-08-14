@@ -282,16 +282,60 @@ function Base.deleteat!(A::SentinelVector{T, S, V, AT}, inds) where {T, S, V, AT
         length(inds) == n || throw(BoundsError(A, inds))
         p = 1
         for (q, i) in enumerate(inds)
-            @inbounds A[p] = A[q]
+            if isassigned(A, q)
+                @inbounds A[p] = A[q]
+            else
+                unset!(A, p)
+            end
             p += !i
         end
         deleteat!(parent(A), n - p + 1:n)
     else
-        for ind in reverse(inds)
-            deleteat!(A, ind)
-        end
+        _deleteat!(A, inds)
     end
     return A
+end
+
+unset!(A::Vector, i) = ccall(:jl_arrayunset, Cvoid, (Array, Csize_t), A, i - 1)
+
+function _deleteat!(a::SentinelVector, inds)
+    n = length(a)
+    y = iterate(inds)
+    y === nothing && return a
+    p, s = y
+    checkbounds(a, p)
+    q = p + 1
+    while true
+        y = iterate(inds, s)
+        y === nothing && break
+        i, s = y
+        if !(q <= i <= n)
+            if i < q
+                throw(ArgumentError("indices must be unique and sorted"))
+            else
+                throw(BoundsError())
+            end
+        end
+        while q < i
+            if isassigned(a, q)
+                @inbounds a[p] = a[q]
+            else
+                unset!(a, p)
+            end
+            p += 1; q += 1
+        end
+        q = i + 1
+    end
+    while q <= n
+        if isassigned(a, q)
+            @inbounds a[p] = a[q]
+        else
+            unset!(a, p)
+        end
+        p += 1; q += 1
+    end
+    deleteat!(parent(a), n - p + 2:n)
+    return a
 end
 
 function Base.insert!(A::SentinelVector, idx::Integer, item)
