@@ -543,23 +543,43 @@ deleteat!(c2, Int[])
 @test length(c2) == 15
 
 @testset "iteration protocol on ChainedVector" begin
-    @test isnothing(iterate(ChainedVector([[]])))
     for len in 0:6
+        cv = ChainedVector([1:len])
+        @test length(cv) == len
+        c = 0
+        for (i, v) in enumerate(cv)
+            c += 1
+            @test i == v
+        end
+        @test c == len
         for j in 0:len
             cv = ChainedVector([1:j, j+1:len])
+            @test length(cv) == len
+            c = 0
             for (i, v) in enumerate(cv)
+                c += 1
                 @test i == v
             end
+            @test c == len
             for k in j:len
                 cv = ChainedVector([1:j, j+1:k, k+1:len])
+                @test length(cv) == len
+                c = 0
                 for (i, v) in enumerate(cv)
+                    c += 1
                     @test i == v
                 end
+                @test c == len
+
                 for l in k:len
                     cv = ChainedVector([1:j, j+1:k, k+1:l, l+1:len])
+                    @test length(cv) == len
+                    c = 0
                     for (i, v) in enumerate(cv)
+                        c += 1
                         @test i == v
                     end
+                    @test c == len
                 end
             end
         end
