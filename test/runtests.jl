@@ -416,6 +416,11 @@ deleteat!(x, b)
 deleteat!(x, Int[])
 @test length(x) == 9
 
+#30
+x = ChainedVector([Vector{String}(undef, 3), ["hey", "ho"]])
+@test !isassigned(x, 1)
+@test isassigned(x, 4)
+
 end
 
 @testset "MissingVector" begin
