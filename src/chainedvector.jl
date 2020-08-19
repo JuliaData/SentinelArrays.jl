@@ -41,6 +41,19 @@ Base.@propagate_inbounds function Base.getindex(A::ChainedVector, i::Integer)
     return x
 end
 
+Base.@propagate_inbounds function Base.isassigned(A::ChainedVector, i::Integer)
+    @boundscheck checkbounds(A, i)
+    chunk, ix = index(A, i)
+    return @inbounds isassigned(A.arrays[chunk], ix)
+end
+
+# Base.@propagate_inbounds function Base.getindex(A::ChainedVector, chunk::Integer, i::Integer)
+#     @boundscheck checkbounds(A.arrays, chunk)
+#     @boundscheck checkbounds(A.arrays[chunk], i)
+#     @inbounds x = A.arrays[chunk][i]
+#     return x
+# end
+
 Base.@propagate_inbounds function Base.setindex!(A::ChainedVector, v, i::Integer)
     @boundscheck checkbounds(A, i)
     chunk, ix = index(A, i)
