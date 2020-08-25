@@ -113,14 +113,6 @@ end
 Base.convert(::Type{SentinelArray}, arr::AbstractArray{T}) where {T} = convert(SentinelArray{T}, arr)
 Base.convert(::Type{SentinelVector{T}}, arr::AbstractArray) where {T} = convert(SentinelArray{T}, arr)
 
-function Base.similar(A::SentinelArray{T, N, S, V}, ::Type{T2}, dims::Dims{N2}) where {T, N, S, V, T2, N2}
-    if T2 >: V
-        SentinelArray{Core.Compiler.typesubtract(T2, V)}(undef, dims)
-    else
-        similar(parent(A), T2, dims)
-    end
-end
-
 Base.empty(A::SentinelVector{T}, ::Type{U}=T) where {T, U} = SentinelVector{U}(undef, 0)
 # Base.emptymutable(A::SentinelVector{T}, ::Type{U}=T) where {T, U} = SentinelVector{U}(undef, 0)
 
@@ -243,8 +235,6 @@ function Base.empty!(A::SentinelVector)
     empty!(parent(A))
     return A
 end
-
-Base.copy(A::SentinelArray{T, N}) where {T, N} = SentinelArray(copy(parent(A)), A.sentinel, A.value)
 
 function Base.resize!(A::SentinelVector{T}, len) where {T}
     oldlen = length(A)
