@@ -40,28 +40,6 @@ x = SentinelVector{Int64}(undef, 1)
 x[1] = missing
 @test x[1] === missing
 
-y = similar(x)
-@test typeof(parent(x)) == typeof(parent(y))
-@test y[1] === missing
-y = similar(x, 20)
-@test typeof(parent(x)) == typeof(parent(y))
-@test y[1] === missing
-y = similar(x, (10, 10))
-@test eltype(parent(x)) == eltype(parent(y))
-@test y[1] === missing
-y = similar(x, Union{Missing, Float64})
-@test eltype(parent(y)) === Float64
-@test y[1] === missing
-y = similar(x, Union{Missing, Float64}, 10)
-@test eltype(parent(y)) === Float64
-@test y[1] === missing
-@test length(y) == 10
-y = similar(x, Union{Missing, Float64}, (10, 10))
-@test eltype(parent(y)) === Float64
-@test y[1] === missing
-y = similar(x, Float64, 10)
-@test y isa Vector{Float64}
-
 x = SentinelArray{Float64, 2}(undef, 10, 10)
 @test size(x) == (10, 10)
 x = SentinelArray{Float64}(undef, 10, 10)
@@ -147,8 +125,6 @@ insert!(x, length(x) + 1, "pirate")
 @test splice!(x, length(x), ["pirate2"]) == "pirate"
 @test splice!(x, length(x)) == "pirate2"
 @test splice!(x, length(x), ["pirate3", "pirate4"]) === missing
-@test x[end-1:end] == ["pirate3", "pirate4"]
-@test typeof(x[end-1:end]) == typeof(x)
 
 @test splice!(x, (length(x)-1):length(x), ["pirate5", "pirate6"]) == ["pirate3", "pirate4"]
 @test splice!(x, (length(x)-1):length(x), ["pirate7"]) == ["pirate5", "pirate6"]
