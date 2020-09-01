@@ -190,7 +190,6 @@ Base.@propagate_inbounds function Base.deleteat!(A::ChainedVector, inds)
     prevind = 0
     ind = chunk > N ? 0 : A.inds[chunk]
     todelete = Int[]
-    deleted = 0
     while y !== nothing
         # find chunk where deleting starts
         while ind < i
@@ -207,21 +206,24 @@ Base.@propagate_inbounds function Base.deleteat!(A::ChainedVector, inds)
             i, s = y
         end
         # delete indices from this chunk
-        deleted += length(todelete)
-        @inbounds A.inds[chunk] = ind - deleted
         @inbounds deleteat!(A.arrays[chunk], todelete)
         empty!(todelete)
     end
-    # update unaffected chunks
-    for j = (chunk + 1):length(A.arrays)
-        A.inds[j] -= deleted
-    end
-    # check for empty chunks and remove
-    for j = length(A.inds):-1:1
-        if length(A.arrays[j]) == 0
-            deleteat!(A.arrays, j)
-            deleteat!(A.inds, j)
+    # reset inds
+    x = 0
+    @inbounds for j = 1:N
+        # note that A.arrays[j] can have zero length
+        len = length(A.arrays[j])
+        if len == 0
+            push!(todelete, j)
+        else
+            x += len
+            A.inds[j] = x
         end
+    end
+    for j in todelete
+        deleteat!(A.arrays, j)
+        deleteat!(A.inds, j)
     end
     return A
 end

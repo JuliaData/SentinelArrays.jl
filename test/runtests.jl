@@ -399,6 +399,11 @@ x = ChainedVector([Vector{String}(undef, 3), ["hey", "ho"]])
 @test !isassigned(x, 1)
 @test isassigned(x, 4)
 
+#36
+x = ChainedVector([[1,2,3], [4,5,6], [7,8,9], [10,11,12]])
+deleteat!(x, [1, 2, 10, 11])
+@test x == [3, 4, 5, 6, 7, 8, 9, 12]
+
 end
 
 @testset "MissingVector" begin
