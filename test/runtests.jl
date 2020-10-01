@@ -404,6 +404,12 @@ x = ChainedVector([[1,2,3], [4,5,6], [7,8,9], [10,11,12]])
 deleteat!(x, [1, 2, 10, 11])
 @test x == [3, 4, 5, 6, 7, 8, 9, 12]
 
+#38
+A = ChainedVector([collect(((i - 1) * 153 + 1):(i * 153 + 1)) for i = 1:16])
+inds = collect(1:1883)
+deleteat!(A, inds)
+@test length(A) == 581
+
 end
 
 @testset "MissingVector" begin
