@@ -227,7 +227,7 @@ Base.@propagate_inbounds function Base.setindex!(A::SentinelArray{T, N, S, V}, v
 end
 
 # other AbstractArray functions
-function Base.reverse(A::SentinelVector, s=first(LinearIndices(A)), n=last(LinearIndices(A)))
+function Base.reverse(A::SentinelVector, s::Integer=first(LinearIndices(A)), n::Integer=last(LinearIndices(A)))
     return SentinelArray(reverse(parent(A), s, n), A.sentinel, A.value)
 end
 

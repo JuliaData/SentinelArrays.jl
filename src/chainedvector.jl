@@ -221,7 +221,7 @@ Base.@propagate_inbounds function Base.deleteat!(A::ChainedVector, inds)
             A.inds[j] = x
         end
     end
-    for j in todelete
+    for j in Iterators.reverse(todelete)
         deleteat!(A.arrays, j)
         deleteat!(A.inds, j)
     end
