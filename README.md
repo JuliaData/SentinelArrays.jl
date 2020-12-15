@@ -1,5 +1,8 @@
 # SentinelArrays.jl
 
+[![CI](https://github.com/JuliaData/SentinelArrays.jl/workflows/CI/badge.svg)](https://github.com/JuliaData/SentinelArrays.jl/actions?query=workflow%3ACI)
+[![codecov](https://codecov.io/gh/JuliaData/SentinelArrays.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/JuliaData/SentinelArrays.jl)
+
 *Array types that can use sentinel values of the element type for special values*
 
 ## Installation
