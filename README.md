@@ -2,6 +2,9 @@
 
 [![CI](https://github.com/JuliaData/SentinelArrays.jl/workflows/CI/badge.svg)](https://github.com/JuliaData/SentinelArrays.jl/actions?query=workflow%3ACI)
 [![codecov](https://codecov.io/gh/JuliaData/SentinelArrays.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/JuliaData/SentinelArrays.jl)
+[![deps](https://juliahub.com/docs/SentinelArrays/deps.svg)](https://juliahub.com/ui/Packages/SentinelArrays/uMYVe?t=2)
+[![version](https://juliahub.com/docs/SentinelArrays/version.svg)](https://juliahub.com/ui/Packages/SentinelArrays/uMYVe)
+[![pkgeval](https://juliahub.com/docs/SentinelArrays/pkgeval.svg)](https://juliahub.com/ui/Packages/SentinelArrays/uMYVe)
 
 *Array types that can use sentinel values of the element type for special values*
 
