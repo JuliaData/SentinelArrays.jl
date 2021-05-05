@@ -26,11 +26,49 @@ function ChainedVector(arrays::Vector{A}) where {A <: AbstractVector{T}} where {
     return ChainedVector{T, A}(arrays, inds)
 end
 
+@noinline function cleanup!(A::ChainedVector)
+    N = length(A.arrays)
+    for i = N:-1:1
+        if length(A.arrays[i]) == 0
+            deleteat!(A.arrays, i)
+            deleteat!(A.inds, i)
+        end
+    end
+    return
+end
+
 Base.IndexStyle(::Type{<:ChainedVector}) = Base.IndexLinear()
 Base.size(x::ChainedVector) = (length(x.inds) == 0 ? 0 : x.inds[end],)
 
+# @inline function index(A::ChainedVector, i::Integer)
+#     inds = A.inds
+#     @inbounds interp = max(1, fld(i * length(inds), inds[end]))
+#     @inbounds ind = inds[interp]
+#     if i <= ind
+#         interp == 1 && return (1, i)
+#         @inbounds while interp > 1 && i <= inds[interp - 1]
+#             interp -= 1
+#         end
+#         return interp == 1 ? (1, i) : (interp, i - @inbounds(inds[interp - 1]))
+#     else
+#         chunk = searchsortedfirst(A.inds, i)
+#         return chunk, i - (chunk == 1 ? 0 : @inbounds A.inds[chunk - 1])
+#     end
+# end
+
+# @inline function index(A::ChainedVector, i::Integer)
+#     inds = A.inds
+#     chunk = 1
+#     @inbounds ind = inds[chunk]
+#     while i > ind
+#         chunk += 1
+#         @inbounds ind = inds[chunk]
+#     end
+#     return chunk, i - (chunk == 1 ? 0 : @inbounds inds[chunk - 1])
+# end
+
 @inline function index(A::ChainedVector, i::Integer)
-    chunk = searchsortedfirst(A.inds, i)
+    @inbounds chunk = searchsortedfirst(A.inds, i)
     return chunk, i - (chunk == 1 ? 0 : @inbounds A.inds[chunk - 1])
 end
 
@@ -47,13 +85,6 @@ Base.@propagate_inbounds function Base.isassigned(A::ChainedVector, i::Integer)
     return @inbounds isassigned(A.arrays[chunk], ix)
 end
 
-# Base.@propagate_inbounds function Base.getindex(A::ChainedVector, chunk::Integer, i::Integer)
-#     @boundscheck checkbounds(A.arrays, chunk)
-#     @boundscheck checkbounds(A.arrays[chunk], i)
-#     @inbounds x = A.arrays[chunk][i]
-#     return x
-# end
-
 Base.@propagate_inbounds function Base.setindex!(A::ChainedVector, v, i::Integer)
     @boundscheck checkbounds(A, i)
     chunk, ix = index(A, i)
@@ -62,51 +93,119 @@ Base.@propagate_inbounds function Base.setindex!(A::ChainedVector, v, i::Integer
 end
 
 # efficient iteration
-@inline function Base.iterate(A::ChainedVector)
-    length(A) == 0 && return nothing
-    i = 1
-    chunk = 1
-    chunk_i = 1
-    chunk_len = A.inds[1]
-    while i > chunk_len
-        chunk += 1
-        @inbounds chunk_len = A.inds[chunk]
-    end
-    x = A.arrays[chunk][1]
-    # find next valid index
-    i += 1
-    if i > chunk_len
-        while true
-            chunk += 1
-            chunk > length(A.inds) && break
-            @inbounds chunk_len = A.inds[chunk]
-            i <= chunk_len && break
-        end
-    else
-        chunk_i += 1
-    end
-    return x, (i, chunk, chunk_i, chunk_len, length(A))
+struct IndexIterator{A}
+    arrays::Vector{A}
 end
 
-@inline function Base.iterate(A::ChainedVector, (i, chunk, chunk_i, chunk_len, len))
-    i > len && return nothing
-    @inbounds x = A.arrays[chunk][chunk_i]
-    i += 1
-    if i > chunk_len
-        chunk_i = 1
-        while true
-            chunk += 1
-            chunk > length(A.inds) && break
-            @inbounds chunk_len = A.inds[chunk]
-            i <= chunk_len && break
-        end
-    else
-        chunk_i += 1
+struct ChainedVectorIteratedValue{T}
+    x::T
+end
+
+@inline function Base.eachindex(A::ChainedVector)
+    # check for and remove any empty chunks
+    cleanup!(A)
+    return IndexIterator(A.arrays)
+end
+
+@inline function Base.iterate(x::IndexIterator{A}) where {A <: AbstractVector{T}} where {T}
+    arrays = x.arrays
+    length(arrays) == 0 && return nothing
+    chunkidx = 1
+    @inbounds chunk = arrays[chunkidx]
+    # we already ran cleanup! so guaranteed non-empty
+    @inbounds y = chunk[1]
+    return ChainedVectorIteratedValue(y), (arrays, chunkidx, chunk, length(chunk), 2)
+end
+
+@inline function Base.iterate(x::IndexIterator{A}, (arrays, chunkidx, chunk, chunklen, i)) where {A <: AbstractVector{T}} where {T}
+    if i > chunklen
+        chunkidx += 1
+        chunkidx > length(arrays) && return nothing
+        @inbounds chunk = arrays[chunkidx]
+        chunklen = length(chunk)
+        i = 1
     end
-    return x, (i, chunk, chunk_i, chunk_len, len)
+    @inbounds y = chunk[i]
+    i += 1
+    return ChainedVectorIteratedValue(y), (arrays, chunkidx, chunk, chunklen, i)
+end
+
+@inline Base.getindex(A::ChainedVector, idx::ChainedVectorIteratedValue) = idx.x
+
+function eachind2(A)
+    x = 0
+    for y in A
+        x += y
+    end
+    return x
+end
+
+function eachind3(A)
+    x = 0
+    for i in eachindex(A)
+        @inbounds x += A[i]
+    end
+    return x
+end
+
+@inline function Base.iterate(A::ChainedVector)
+    idx = eachindex(A)
+    state = iterate(idx)
+    state === nothing && return nothing
+    ci, st = state
+    return ci.x, (idx, st)
+end
+
+@inline function Base.iterate(A::ChainedVector, (idx, st))
+    state = iterate(idx, st)
+    state === nothing && return nothing
+    ci, st = state
+    return ci.x, (idx, st)
 end
 
 # other AbstractArray functions
+Base.similar(x::ChainedVector{T}, len::Base.DimOrInd) where {T} = similar(x, T, len)
+Base.similar(x::ChainedVector{T}, ::Type{S}, len::Base.DimOrInd) where {T, S} =
+    ChainedVector([similar(A, S, length(A)) for A in x.arrays])
+
+Base.copyto!(dest::ChainedVector, src::AbstractVector) =
+    copyto!(dest, 1, src, 1, length(src))
+Base.copyto!(dest::ChainedVector, doffs::Union{Signed, Unsigned}, src::AbstractVector) =
+    copyto!(dest, doffs, src, 1, length(src))
+
+function Base.copyto!(dest::ChainedVector{T}, doffs::Union{Signed, Unsigned},
+    src::AbstractVector, soffs::Union{Signed, Unsigned}, n::Union{Signed, Unsigned}) where {T}
+    # @show length(dest), doffs, length(src), soffs, n
+    (doffs > 0 && (doffs + n - 1) <= length(dest) &&
+    soffs > 0 && (soffs + n - 1) <= length(src)) || throw(ArgumentError("out of range arguments to copyto! on ChainedVector"))
+    n == 0 && return dest
+    N = length(dest.inds)
+    aidx = 1
+    prevind = 0
+    # find first chunk where we'll start copying to
+    @inbounds while dest.inds[aidx] < doffs
+        prevind = dest.inds[aidx]
+        aidx += 1
+        aidx > N && break
+    end
+    while true
+        # aidx now points to chunk where we need to copy
+        A = dest.arrays[aidx]
+        # now compute how many elements to copy to this chunk
+        off = doffs - prevind
+        chunkn = min(length(A) - off + 1, n)
+        # @show aidx, off, chunkn, soffs, soffs:(soffs + chunkn - 1)
+        copyto!(A, off, view(src, soffs:(soffs + chunkn - 1)))
+        soffs += chunkn
+        n -= chunkn
+        prevind = dest.inds[aidx]
+        aidx += 1
+        aidx > N && break
+        doffs = prevind + 1
+    end
+    return dest
+end
+
 function Base.empty!(A::ChainedVector)
     empty!(A.arrays)
     empty!(A.inds)
@@ -230,6 +329,7 @@ end
 
 Base.@propagate_inbounds function Base.deleteat!(A::ChainedVector, inds::AbstractVector{Bool})
     length(inds) == length(A) || throw(BoundsError(A, inds))
+    # TODO: split inds up by A.arrays and call deleteat! on views into inds
     for i = length(A):-1:1
         if inds[i]
             deleteat!(A, i)
@@ -339,3 +439,40 @@ function Base.prepend!(A::ChainedVector{T}, B) where {T}
     end
     return A
 end
+
+Base.in(x, A::ChainedVector) = any(y->x in y, A.arrays)
+
+# function Base.first(itr::ChainedVector, n::Integer)
+#     collect(Iterators.take(itr, n))
+# end
+
+# function Base.last(itr::ChainedVector, n::Integer)
+#     reverse!(collect(Iterators.take(Iterators.reverse(itr), n)))
+# end
+
+Base.foreach(f::F, x::ChainedVector) where {F} = foreach(x->foreach(f, x), x.arrays)
+
+Base.map(f::F, x::ChainedVector) where {F} = ChainedVector([map(f, y) for y in x.arrays])
+
+# function Base.map(f::F, x::ChainedVector) where {F}
+#     tasks = map(A -> Threads.@spawn(map(f, A)), x.arrays)
+#     ChainedVector([fetch(tsk) for tsk in tasks])
+# end
+
+function Base.map!(f::F, A::AbstractVector, x::ChainedVector) where {F}
+
+end
+
+Base.any(f::Function, x::ChainedVector) = any(y -> any(f, y), x.arrays)
+Base.any(x::ChainedVector) = any(y -> any(y), x.arrays)
+Base.all(f::Function, x::ChainedVector) = all(y -> all(f, y), x.arrays)
+Base.all(x::ChainedVector) = all(y -> all(y), x.arrays)
+
+Base.reduce(op::OP, x::ChainedVector) where {OP} = reduce(op, (reduce(op, y) for y in x.arrays))
+Base.foldl(op::OP, x::ChainedVector) where {OP} = foldl(op, (foldl(op, y) for y in x.arrays))
+Base.foldr(op::OP, x::ChainedVector) where {OP} = foldr(op, (foldr(op, y) for y in x.arrays))
+Base.mapreduce(f::F, op::OP, x::ChainedVector) where {F, OP} = reduce(op, (mapreduce(f, op, y) for y in x.arrays))
+Base.mapfoldl(f::F, op::OP, x::ChainedVector) where {F, OP} = foldl(op, (mapfoldl(f, op, y) for y in x.arrays))
+Base.mapfoldr(f::F, op::OP, x::ChainedVector) where {F, OP} = foldr(op, (mapfoldr(f, op, y) for y in x.arrays))
+Base.count(f::F, x::ChainedVector) where {F} = sum(count(f, y) for y in x.arrays)
+Base.count(x::ChainedVector) = sum(count(y) for y in x.arrays)
