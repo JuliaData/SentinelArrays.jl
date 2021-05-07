@@ -159,7 +159,155 @@
     inds = collect(1:1883)
     deleteat!(A, inds)
     @test length(A) == 581
-    
+
+    # similar
+    x = ChainedVector([[1,2,3], [4,5,6], [7,8,9,10]])
+    y = similar(x, length(x))
+    @test length(x) == length(y)
+    @test eltype(x) == eltype(y)
+    y = similar(x, Union{Missing, eltype(x)}, 2 * length(x))
+    @test 2 * length(x) == length(y)
+    @test eltype(y) == Union{Missing, eltype(x)}
+    y = similar(x, 1)
+    @test length(y) == 1
+    y = similar(x, 0)
+    @test length(y) == 0
+    @test eltype(x) == eltype(y)
+    y2 = similar(y, 10)
+    @test length(y2) == 10
+    @test eltype(y2) == eltype(x)
+
+    x = ChainedVector([[1,2,3], [4,5,6], [7,8,9,10]])
+    @test 10 in x
+    @test !(11 in x)
+    cnt = Ref(0)
+    foreach(x -> cnt[] += 1, x)
+    @test cnt[] == length(x)
+    y = map(identity, x)
+    @test x == y
+    y = map(x -> x + 1, x)
+    @test all(x -> x[1] == x[2] + 1, zip(y, x))
+
+    # map!
+    x = ChainedVector([[1,2,3], [4,5,6], [7,8,9,10]])
+    y = copy(x)
+    map!(x -> x + 1, y, x)
+    @test all(x -> x[1] + 1 == x[2], zip(x, y))
+    map!(x -> x + 1, x, y)
+    @test all(x -> x[1] + 1 == x[2], zip(y, x))
+    map!(x -> 1, x, x)
+    @test all(x -> x == 1, x)
+    x = ChainedVector([[1,2,3], [4,5,6], [7,8,9,10]])
+    y = ChainedVector([[1,2,3], [4,5,6,7], [8,9,10]])
+    map!(x -> x + 1, x, y)
+    @test all(x -> x[1] + 1 == x[2], zip(y, x))
+
+    # reductions
+    x = ChainedVector([[1,2,3], [4,5,6], [7,8,9,10]])
+    @test any(x -> iseven(x), x)
+    @test any(map(x -> iseven(x), x))
+    @test !all(x -> iseven(x), x)
+    @test !all(map(x -> iseven(x), x))
+    @test reduce(+, x) == 55
+    @test foldl(+, x) == 55
+    @test foldr(+, x) == 55
+    @test mapreduce(x -> x + 1, +, x) == 65
+    @test mapfoldl(x -> x + 1, +, x) == 65
+    @test mapfoldr(x -> x + 1, +, x) == 65
+    @test count(x -> iseven(x), x) == 5
+    @test count(map(x -> iseven(x), x)) == 5
+    @test extrema(x) == (1, 10)
+    @test extrema(x -> x + 1, x) == (2, 11)
+    @test minimum(x) == 1
+    @test minimum(x -> x + 1, x) == 2
+    @test maximum(x) == 10
+    @test maximum(x -> x + 1, x) == 11
+
+    # finds
+    @test findmax(x) == (10, 10)
+    @test findmax(x -> x + 1, x) == (11, 10)
+    @test findmin(x) == (1, 1)
+    @test findmin(x -> x + 1, x) == (2, 1)
+    @test argmax(x) == 10
+    @test argmax(x -> x + 1, x) == 10
+    @test argmin(x) == 1
+    @test argmin(x -> x + 1, x) == 1
+    @test findfirst(iseven, x) == 2
+    @test findfirst(x -> x == 10, x) == 10
+    @test findfirst(x -> x == 11, x) === nothing
+    @test findfirst(map(iseven, x)) == 2
+    @test findlast(iseven, x) == 10
+    @test findlast(x -> x == 1, x) == 1
+    @test findlast(x -> x == 11, x) === nothing
+    @test findlast(map(iseven, x)) == 10
+    @test findnext(iseven, x, 2) == 2
+    @test findnext(iseven, x, 3) == 4
+    @test findnext(x -> x == 11, x, 3) === nothing
+    @test findprev(iseven, x, 10) == 10
+    @test findprev(iseven, x, 9) == 8
+    @test findprev(x -> x == 11, x, 9) === nothing
+    @test findall(map(iseven, x)) == [2, 4, 6, 8, 10]
+    @test findall(iseven, x) == [2, 4, 6, 8, 10]
+    @test filter(iseven, x) == [2, 4, 6, 8, 10]
+    filter!(iseven, x)
+    @test x == [2, 4, 6, 8, 10]
+    @test length(x) == 5
+    @test replace(iseven, x) == map(iseven, x)
+    @test replace!(iseven, copy(x)) == replace!(iseven, x)
+    @test all(==(1), x)
+    @test length(x) == 5
+
+    x = ChainedVector(Vector{Float64}[])
+    @test !any(x -> iseven(x), x)
+    @test !any(map(x -> iseven(x), x))
+    @test all(x -> iseven(x), x)
+    @test all(map(x -> iseven(x), x))
+    @test_throws ArgumentError reduce(+, x)
+    @test_throws ArgumentError foldl(+, x)
+    @test_throws ArgumentError foldr(+, x)
+    @test_throws ArgumentError mapreduce(x -> x + 1, +, x)
+    @test_throws ArgumentError mapfoldl(x -> x + 1, +, x)
+    @test_throws ArgumentError mapfoldr(x -> x + 1, +, x)
+    @test count(x -> iseven(x), x) == 0
+    @test count(map(x -> iseven(x), x)) == 0
+    @test_throws ArgumentError extrema(x)
+    @test_throws ArgumentError extrema(x -> x + 1, x)
+    @test_throws ArgumentError minimum(x)
+    @test_throws ArgumentError minimum(x -> x + 1, x)
+    @test_throws ArgumentError maximum(x)
+    @test_throws ArgumentError maximum(x -> x + 1, x)
+
+    @test_throws ArgumentError findmax(x)
+    @test_throws ArgumentError findmax(x -> x + 1, x)
+    @test_throws ArgumentError findmin(x)
+    @test_throws ArgumentError findmin(x -> x + 1, x)
+    @test_throws ArgumentError argmax(x)
+    @test_throws ArgumentError argmax(x -> x + 1, x)
+    @test_throws ArgumentError argmin(x)
+    @test_throws ArgumentError argmin(x -> x + 1, x)
+    @test findfirst(iseven, x) === nothing
+    @test findfirst(x -> x == 10, x) === nothing
+    @test findfirst(x -> x == 11, x) === nothing
+    @test findfirst(map(iseven, x)) === nothing
+    @test findlast(iseven, x) === nothing
+    @test findlast(x -> x == 1, x) === nothing
+    @test findlast(x -> x == 11, x) === nothing
+    @test findlast(map(iseven, x)) === nothing
+    @test findnext(iseven, x, 2) === nothing
+    @test findnext(iseven, x, 3) === nothing
+    @test findnext(x -> x == 11, x, 3) === nothing
+    @test findprev(iseven, x, 10) === nothing
+    @test findprev(iseven, x, 9) === nothing
+    @test findprev(x -> x == 11, x, 9) === nothing
+    @test findall(map(iseven, x)) == Union{}[]
+    @test findall(iseven, x) == Union{}[]
+    @test filter(iseven, x) == Float64[]
+    filter!(iseven, x)
+    @test isempty(x)
+    @test replace(iseven, x) == map(iseven, x)
+    @test replace!(iseven, copy(x)) == replace!(iseven, x)
+    @test isempty(x)
+
 end
 
 @testset "iteration protocol on ChainedVector" begin
@@ -204,4 +352,35 @@ end
             end
         end
     end
+    x = ChainedVector([collect(1:i) for i = 10:100])
+    y = copy(x)
+    for (a, b) in zip(x, y)
+        @test a == b
+    end
+    for (aidx, bidx) in zip(eachindex(x), eachindex(y))
+        # getindex w/ custom ChainedVectorIndex
+        @test x[aidx] == y[bidx]
+    end
+    for (i, idx) in enumerate(eachindex(x))
+        # setindex! w/ custom ChainedVectorIndex
+        x[idx] = i
+    end
+    @test x == 1:length(x)
+    ei = eachindex(x)
+    @test length(ei) == length(x)
+    @test eltype(ei) <: SentinelArrays.ChainedVectorIndex
+    idx = collect(Iterators.take(ei, 20))
+    @test x[1:20] == x[idx]
+    x = ChainedVector(Vector{Int}[])
+    @test isempty(x)
+    @test length(x) == 0
+    cnt = 0
+    for y in x
+        cnt += 1
+    end
+    @test cnt == 0
+    for i in eachindex(x)
+        cnt += x[i]
+    end
+    @test cnt == 0
 end
