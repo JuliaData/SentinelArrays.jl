@@ -688,7 +688,7 @@ end
 Base.replace(f::Base.Callable, a::ChainedVector) = ChainedVector([replace(f, A) for A in a.arrays])
 Base.replace!(f::Base.Callable, a::ChainedVector) = (foreach(A -> replace!(f, A), a.arrays); return a)
 Base.replace(a::ChainedVector, old_new::Pair...; count::Union{Integer,Nothing}=nothing) = ChainedVector([replace(A, old_new...; count=count) for A in a.arrays])
-Base.replace!(a::ChainedVector, old_new::Pair...; count::Union{Integer,Nothing}=nothing) = (foreach(A -> replace!(A, old_new...; count=count), a.arrays); return a)
+Base.replace!(a::ChainedVector, old_new::Pair...; count::Integer=typemax(Int)) = (foreach(A -> replace!(A, old_new...; count=count), a.arrays); return a)
 
 import Base.Broadcast: Broadcasted
 struct ChainedVectorStyle <: Broadcast.AbstractArrayStyle{1} end

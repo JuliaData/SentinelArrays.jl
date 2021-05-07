@@ -241,9 +241,11 @@
     @test findlast(x -> x == 11, x) === nothing
     @test findlast(map(iseven, x)) == 10
     @test findnext(iseven, x, 2) == 2
+    @test findnext(map(iseven, x), 2) == 2
     @test findnext(iseven, x, 3) == 4
     @test findnext(x -> x == 11, x, 3) === nothing
     @test findprev(iseven, x, 10) == 10
+    @test findprev(map(iseven, x), 10) == 10
     @test findprev(iseven, x, 9) == 8
     @test findprev(x -> x == 11, x, 9) === nothing
     @test findall(map(iseven, x)) == [2, 4, 6, 8, 10]
@@ -254,7 +256,9 @@
     @test length(x) == 5
     @test replace(iseven, x) == map(iseven, x)
     @test replace!(iseven, copy(x)) == replace!(iseven, x)
-    @test all(==(1), x)
+    @test replace(x, 1 => 2) == map(x -> x == 1 ? 2 : x, x)
+    @test map(x -> x == 1 ? 2 : x, x) == replace!(x, 1 => 2)
+    @test all(==(2), x)
     @test length(x) == 5
 
     x = ChainedVector(Vector{Float64}[])
@@ -305,7 +309,9 @@
     filter!(iseven, x)
     @test isempty(x)
     @test replace(iseven, x) == map(iseven, x)
+    @test replace(x, 1 => 2) == map(x -> x == 1 ? 2.0 : x, x)
     @test replace!(iseven, copy(x)) == replace!(iseven, x)
+    @test map(x -> x == 1 ? 2.0 : x, x) == replace!(x, 1 => 2)
     @test isempty(x)
 
 end
