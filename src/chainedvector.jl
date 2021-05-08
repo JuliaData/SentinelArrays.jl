@@ -571,7 +571,7 @@ function Base.map!(f::F, x::ChainedVector, A::AbstractVector) where {F}
     st = iterate(idx)
     for array in x.arrays
         for j in eachindex(array)
-            @inbounds array[st[1]] = f(A[i])
+            @inbounds array[j] = f(A[st[1]])
             st = iterate(idx, st[2])
         end
     end
