@@ -314,6 +314,53 @@
     @test map(x -> x == 1 ? 2.0 : x, x) == replace!(x, 1 => 2)
     @test isempty(x)
 
+    # copyto!
+    # ChainedVector dest: doffs, soffs, n
+    x = ChainedVector([[1,2,3], [4,5,6], [7,8,9,10]])
+    y = copy(map(x -> x + 1, x))
+    x2 = similar(x)
+    copyto!(x2, y)
+    @test x2 == y
+    copyto!(x2, 2, y[1:end-1])
+    @test x2[1] == y[1]
+    @test x2[2:end] == y[1:end-1]
+    @test_throws ArgumentError copyto!(x2, 1, y, 1, -1)
+    @test_throws ArgumentError copyto!(x2, 1, y, 1, 30)
+    copyto!(x2, 2, y, 9, 1)
+    @test x2[2] == y[9]
+    y2 = copy(x2);
+    copyto!(x2, 1, copy(x), 1, 0)
+    @test x2 == y2
+    copyto!(x2, 2, y2, 2)
+    @test x2[2:end] == y2[2:end]
+    # ChainedVector src: doffs, soffs, n
+    y2 = copy(y);
+    copyto!(y2, x)
+    @test y2 == x
+    copyto!(y2, 2, view(x, 1:(length(x) - 1)))
+    @test y2[2:end] == x[1:end-1]
+    y3 = copy(y2)
+    copyto!(y2, 1, x, 1, 0)
+    @test y2 == y3
+    @test_throws ArgumentError copyto!(y2, 1, x, 1, 30)
+    @test_throws ArgumentError copyto!(y2, 1, x, 1, -1)
+    copyto!(y2, 2, x, 1, 1)
+    @test y2[2] == x[1]
+    y2 = copy(y);
+    copyto!(y2, 2, x, 2)
+    @test y2[2:end] == x[2:end]
+    # ChainedVector dest & src: doffs, soffs, n
+    x = ChainedVector([[1,2,3], [4,5,6], [7,8,9,10]])
+    x2 = ChainedVector([[1,2,3], [4,5,6], [7,8,9,10]])
+    y = map(x -> x + 1, x)
+    copyto!(x2, y)
+    @test x2 == y
+    x2 = map(identity, x)
+    copyto!(x2, 2, view(y, 2:length(y)))
+    @test x2[2:end] == y[2:end]
+    x2 = map(identity, x)
+    copyto!(x2, 2, y, 2)
+    @test x2[2:end] == y[2:end]
 end
 
 @testset "iteration protocol on ChainedVector" begin

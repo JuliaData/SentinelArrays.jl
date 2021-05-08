@@ -178,6 +178,7 @@ end
 end
 
 # other AbstractArray functions
+Base.similar(x::ChainedVector) = similar(x, length(x))
 Base.similar(x::ChainedVector{T}, len::Base.DimOrInd) where {T} = similar(x, T, len)
 
 function Base.similar(x::ChainedVector{T}, ::Type{S}, len::Base.DimOrInd) where {T, S}
@@ -200,10 +201,13 @@ Base.copyto!(dest::ChainedVector, src::AbstractVector) =
     copyto!(dest, 1, src, 1, length(src))
 Base.copyto!(dest::ChainedVector, doffs::Union{Signed, Unsigned}, src::AbstractVector) =
     copyto!(dest, doffs, src, 1, length(src))
+Base.copyto!(dest::ChainedVector, doffs::Union{Signed, Unsigned}, src::AbstractVector, soffs::Union{Signed, Unsigned}) =
+    copyto!(dest, doffs, src, soffs, length(src) - soffs + 1)
 
 function Base.copyto!(dest::ChainedVector{T}, doffs::Union{Signed, Unsigned},
     src::AbstractVector, soffs::Union{Signed, Unsigned}, n::Union{Signed, Unsigned}) where {T}
     # @show length(dest), doffs, length(src), soffs, n
+    n < 0 && throw(ArgumentError(string("tried to copy n=", n, " elements, but n should be nonnegative")))
     (doffs > 0 && (doffs + n - 1) <= length(dest) &&
     soffs > 0 && (soffs + n - 1) <= length(src)) || throw(ArgumentError("out of range arguments to copyto! on ChainedVector"))
     n == 0 && return dest
@@ -223,8 +227,85 @@ function Base.copyto!(dest::ChainedVector{T}, doffs::Union{Signed, Unsigned},
         n -= chunkn
         prevind = dest.inds[aidx]
         aidx += 1
-        aidx > N && break
+        (aidx > N || n == 0) && break
         doffs = prevind + 1
+    end
+    return dest
+end
+
+Base.copyto!(dest::AbstractVector, src::ChainedVector) =
+    copyto!(dest, 1, src, 1, length(src))
+Base.copyto!(dest::AbstractVector, doffs::Union{Signed, Unsigned}, src::ChainedVector) =
+    copyto!(dest, doffs, src, 1, length(src))
+Base.copyto!(dest::AbstractVector, doffs::Union{Signed, Unsigned}, src::ChainedVector, soffs::Union{Signed, Unsigned}) =
+    copyto!(dest, doffs, src, soffs, length(src) - soffs + 1)
+
+function Base.copyto!(dest::AbstractVector{T}, doffs::Union{Signed, Unsigned},
+    src::ChainedVector, soffs::Union{Signed, Unsigned}, n::Union{Signed, Unsigned}) where {T}
+    # @show length(dest), doffs, length(src), soffs, n
+    n < 0 && throw(ArgumentError(string("tried to copy n=", n, " elements, but n should be nonnegative")))
+    (doffs > 0 && (doffs + n - 1) <= length(dest) &&
+    soffs > 0 && (soffs + n - 1) <= length(src)) || throw(ArgumentError("out of range arguments to copyto! on ChainedVector"))
+    n == 0 && return dest
+    N = length(src.inds)
+    # find first chunk where we'll start copying from
+    aidx, i = index(src, soffs)
+    # prevind = aidx == 1 ? 0 : src.inds[aidx - 1]
+    while true
+        # aidx now points to chunk where we need to copy from
+        A = src.arrays[aidx]
+        chunkn = min(length(A) - i + 1, n)
+        copyto!(dest, doffs, view(A, i:(i + chunkn - 1)))
+        # @show aidx, off, chunkn, soffs, soffs:(soffs + chunkn - 1)
+        n -= chunkn
+        aidx += 1
+        (aidx > N || n == 0) && break
+        doffs += chunkn
+        i = 1
+    end
+    return dest
+end
+
+Base.copyto!(dest::ChainedVector, src::ChainedVector) =
+    copyto!(dest, 1, src, 1, length(src))
+Base.copyto!(dest::ChainedVector, doffs::Union{Signed, Unsigned}, src::ChainedVector) =
+    copyto!(dest, doffs, src, 1, length(src))
+Base.copyto!(dest::ChainedVector, doffs::Union{Signed, Unsigned}, src::ChainedVector, soffs::Union{Signed, Unsigned}) =
+    copyto!(dest, doffs, src, soffs, length(src) - soffs + 1)
+
+function Base.copyto!(dest::ChainedVector{T}, doffs::Union{Signed, Unsigned},
+    src::ChainedVector, soffs::Union{Signed, Unsigned}, n::Union{Signed, Unsigned}) where {T}
+    # @show length(dest), doffs, length(src), soffs, n
+    n < 0 && throw(ArgumentError(string("tried to copy n=", n, " elements, but n should be nonnegative")))
+    (doffs > 0 && (doffs + n - 1) <= length(dest) &&
+    soffs > 0 && (soffs + n - 1) <= length(src)) || throw(ArgumentError("out of range arguments to copyto! on ChainedVector"))
+    n == 0 && return dest
+    cleanup!(src)
+    # find first chunk where we'll start copying to
+    dN = length(dest.inds)
+    didx, di = index(dest, doffs)
+    dchunk = dest.arrays[didx]
+    # find first chunk where we'll start copying from
+    sN = length(src.inds)
+    sidx, si = index(src, soffs)
+    schunk = src.arrays[sidx]
+    while true
+        dlen = length(dchunk) - di + 1
+        slen = length(schunk) - si + 1
+        chunkn = min(dlen, slen, n)
+        copyto!(dchunk, di, schunk, si, chunkn)
+        n -= chunkn
+        n == 0 && break
+        if chunkn == dlen
+            didx += 1
+            @inbounds dchunk = dest.arrays[didx]
+            di = 1
+        end
+        if chunkn == slen
+            sidx += 1
+            @inbounds schunk = src.arrays[sidx]
+            si = 1
+        end
     end
     return dest
 end
@@ -473,11 +554,12 @@ Base.map(f::F, x::ChainedVector) where {F} = ChainedVector([map(f, y) for y in x
 
 function Base.map!(f::F, A::AbstractVector, x::ChainedVector) where {F}
     length(A) >= length(x) || throw(ArgumentError("destination must be at least as long as map! source"))
-    i = 1
+    idx = eachindex(A)
+    st = iterate(idx)
     for array in x.arrays
         for y in array
-            @inbounds A[i] = f(y)
-            i += 1
+            @inbounds A[st[1]] = f(y)
+            st = iterate(idx, st[2])
         end
     end
     return A
@@ -485,11 +567,12 @@ end
 
 function Base.map!(f::F, x::ChainedVector, A::AbstractVector) where {F}
     length(x) >= length(A) || throw(ArgumentError("destination must be at least as long as map! source"))
-    i = 1
+    idx = eachindex(A)
+    st = iterate(idx)
     for array in x.arrays
         for j in eachindex(array)
-            @inbounds array[j] = f(A[i])
-            i += 1
+            @inbounds array[st[1]] = f(A[i])
+            st = iterate(idx, st[2])
         end
     end
     return x
