@@ -35,7 +35,7 @@ end
 @inline function cleanup!(arrays, inds)
     @assert length(arrays) == length(inds)
     for i = length(arrays):-1:1
-        if length(arrays[i]) == 0
+        if !isassigned(arrays, i) || length(arrays[i]) == 0
             deleteat!(arrays, i)
             deleteat!(inds, i)
         end
@@ -86,6 +86,69 @@ Base.@propagate_inbounds function Base.getindex(A::ChainedVector, i::Integer)
     chunk, ix = index(A, i)
     @inbounds x = A.arrays[chunk][ix]
     return x
+end
+
+@inline function linearindex(x::ChainedVector, chunk, chunklen, j, i, i2)
+    # i2 == 0 && throw(BoundsError(x, i2))
+    i == i2 && return chunk, chunklen, j
+    diff = i2 - i
+    if diff > 0
+        # linear search forward
+        # quick check if we're in the same chunk
+        if j + diff <= chunklen
+            # fastest path
+            return chunk, chunklen, j + diff
+        end
+        inds = x.inds
+        chunk += 1
+        N = length(x.arrays)
+        # chunk > N && throw(BoundsError(x, i2))
+        @inbounds ind = inds[chunk]
+        while i2 > ind
+            chunk += 1
+            # chunk > N && throw(BoundsError(x, i2))
+            @inbounds ind = inds[chunk]
+        end
+        # chunk now points to correct chunk where i2 is found
+        @inbounds chunklen = length(x.arrays[chunk])
+        # convert to local chunk index
+        return chunk, chunklen, chunklen - (ind - i2)
+    end
+    # linear search backward
+    # quick check if we're in the same chunk
+    if j + diff >= 1
+        # fastest path
+        return chunk, chunklen, j + diff
+    end
+    inds = x.inds
+    chunk -= 1
+    # chunk == 0 && throw(BoundsError(x, i2))
+    @inbounds ind = inds[chunk]
+    while chunk > 1 && i2 <= inds[chunk - 1]
+        chunk -= 1
+        @inbounds ind = inds[chunk]
+    end
+    # chunk now points to correct chunk where i2 is found
+    @inbounds chunklen = length(x.arrays[chunk])
+    # convert to local chunk index
+    return chunk, chunklen, chunklen - (ind - i2)
+end
+
+Base.@propagate_inbounds function Base.getindex(x::ChainedVector{T, A}, inds::AbstractVector{Int}) where {T, A}
+    isempty(inds) && return similar(x, 0)
+    len = length(inds)
+    res = similar(x.arrays[1], len)
+    chunk = j = ind = 1
+    chunklen = length(x.arrays[1])
+    arrays = x.arrays
+    for i = 1:len
+        @inbounds ind2 = inds[i]
+        # @boundscheck checkbounds(x, ind2)
+        chunk, chunklen, j = linearindex(x, chunk, chunklen, j, ind, ind2)
+        @inbounds res[i] = arrays[chunk][j]
+        ind = ind2
+    end
+    return res
 end
 
 Base.@propagate_inbounds function Base.isassigned(A::ChainedVector, i::Integer)
@@ -317,7 +380,8 @@ function Base.empty!(A::ChainedVector)
 end
 
 function Base.copy(A::ChainedVector{T, AT}) where {T, AT}
-    B = similar(AT, length(A))
+    isempty(A) && return T[]
+    B = similar(A.arrays[1], length(A))
     off = 1
     for arr in A.arrays
         n = length(arr)
