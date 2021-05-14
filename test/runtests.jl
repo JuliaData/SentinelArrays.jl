@@ -1,4 +1,4 @@
-using SentinelArrays, Test, Random
+using SentinelArrays, Test, Random, SplittablesTesting, Folds
 
 @testset "SentinelArrays" begin
 
@@ -578,6 +578,25 @@ deleteat!(c2, Int[])
             end
         end
     end
+end
+
+unitrange_chainedvectors = map(1:100) do seed
+    rng = MersenneTwister(seed)
+    ends = cumsum(rand(rng, 0:9, rand(rng, 1:100)))
+    starts = pushfirst!(ends[1:end-1] .+ 1, 1)
+    cv = ChainedVector((:).(starts, ends))
+    return (label = "seed=$seed", data = cv)
+end
+
+@testset "Folds" begin
+    @testset "$label" for (label, data) in unitrange_chainedvectors
+        @test Folds.collect(data, SequentialEx()) == 1:length(data)
+        @test Folds.collect(data) == 1:length(data)
+    end
+end
+
+@testset "SplittablesBase" begin
+    SplittablesTesting.test_unordered(unitrange_chainedvectors)
 end
 
 end

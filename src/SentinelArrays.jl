@@ -451,6 +451,7 @@ end
 
 include("chainedvector.jl")
 include("missingvector.jl")
+include("folds.jl")
 
 include("precompile.jl")
 _precompile_()
