@@ -134,10 +134,31 @@ end
     return chunk, chunklen, chunklen - (ind - i2)
 end
 
+function over(len, N=Threads.nthreads())
+    nlen, r = divrem(len, N)
+    return (((i - 1) * nlen + 1, i * nlen + ifelse(i == N, r, 0)) for i = 1:N)
+end
+
 Base.@propagate_inbounds function Base.getindex(x::ChainedVector{T, A}, inds::AbstractVector{Int}) where {T, A}
     isempty(inds) && return similar(x, 0)
     len = length(inds)
     res = similar(x.arrays[1], len)
+    # N = Threads.nthreads()
+    # ranges = (((j - 1) * div(len, N) + 1, j == N ? len : j * div(len, N) + 1) for j = 1:N)
+    # @sync for (start, stop) in ranges
+    #     Threads.@spawn begin
+    #         chunk = j = ind = 1
+    #         chunklen = length(x.arrays[1])
+    #         arrays = x.arrays
+    #         for i = start:stop
+    #             @inbounds ind2 = inds[i]
+    #             # @boundscheck checkbounds(x, ind2)
+    #             chunk, chunklen, j = linearindex(x, chunk, chunklen, j, ind, ind2)
+    #             @inbounds res[i] = arrays[chunk][j]
+    #             ind = ind2
+    #         end
+    #     end
+    # end
     chunk = j = ind = 1
     chunklen = length(x.arrays[1])
     arrays = x.arrays
@@ -174,16 +195,6 @@ end
 
 @inline function Base.getindex(A::ChainedVector, x::ChainedVectorIndex)
     return @inbounds x.array[x.i]
-end
-
-@inline function Base.getindex(A::ChainedVector{T}, x::AbstractVector{<:ChainedVectorIndex}) where {T}
-    y = Vector{T}(undef, length(x))
-    j = 1
-    for idx in x
-        @inbounds y[j] = idx[]
-        j += 1
-    end
-    return y
 end
 
 @inline function Base.setindex!(A::ChainedVector, v, x::ChainedVectorIndex)
@@ -269,7 +280,6 @@ Base.copyto!(dest::ChainedVector, doffs::Union{Signed, Unsigned}, src::AbstractV
 
 function Base.copyto!(dest::ChainedVector{T}, doffs::Union{Signed, Unsigned},
     src::AbstractVector, soffs::Union{Signed, Unsigned}, n::Union{Signed, Unsigned}) where {T}
-    # @show length(dest), doffs, length(src), soffs, n
     n < 0 && throw(ArgumentError(string("tried to copy n=", n, " elements, but n should be nonnegative")))
     (doffs > 0 && (doffs + n - 1) <= length(dest) &&
     soffs > 0 && (soffs + n - 1) <= length(src)) || throw(ArgumentError("out of range arguments to copyto! on ChainedVector"))
@@ -284,7 +294,6 @@ function Base.copyto!(dest::ChainedVector{T}, doffs::Union{Signed, Unsigned},
         # now compute how many elements to copy to this chunk
         off = doffs - prevind
         chunkn = min(length(A) - off + 1, n)
-        # @show aidx, off, chunkn, soffs, soffs:(soffs + chunkn - 1)
         copyto!(A, off, view(src, soffs:(soffs + chunkn - 1)))
         soffs += chunkn
         n -= chunkn
@@ -305,7 +314,6 @@ Base.copyto!(dest::AbstractVector, doffs::Union{Signed, Unsigned}, src::ChainedV
 
 function Base.copyto!(dest::AbstractVector{T}, doffs::Union{Signed, Unsigned},
     src::ChainedVector, soffs::Union{Signed, Unsigned}, n::Union{Signed, Unsigned}) where {T}
-    # @show length(dest), doffs, length(src), soffs, n
     n < 0 && throw(ArgumentError(string("tried to copy n=", n, " elements, but n should be nonnegative")))
     (doffs > 0 && (doffs + n - 1) <= length(dest) &&
     soffs > 0 && (soffs + n - 1) <= length(src)) || throw(ArgumentError("out of range arguments to copyto! on ChainedVector"))
@@ -313,13 +321,11 @@ function Base.copyto!(dest::AbstractVector{T}, doffs::Union{Signed, Unsigned},
     N = length(src.inds)
     # find first chunk where we'll start copying from
     aidx, i = index(src, soffs)
-    # prevind = aidx == 1 ? 0 : src.inds[aidx - 1]
     while true
         # aidx now points to chunk where we need to copy from
         A = src.arrays[aidx]
         chunkn = min(length(A) - i + 1, n)
         copyto!(dest, doffs, view(A, i:(i + chunkn - 1)))
-        # @show aidx, off, chunkn, soffs, soffs:(soffs + chunkn - 1)
         n -= chunkn
         aidx += 1
         (aidx > N || n == 0) && break
@@ -338,7 +344,6 @@ Base.copyto!(dest::ChainedVector, doffs::Union{Signed, Unsigned}, src::ChainedVe
 
 function Base.copyto!(dest::ChainedVector{T}, doffs::Union{Signed, Unsigned},
     src::ChainedVector, soffs::Union{Signed, Unsigned}, n::Union{Signed, Unsigned}) where {T}
-    # @show length(dest), doffs, length(src), soffs, n
     n < 0 && throw(ArgumentError(string("tried to copy n=", n, " elements, but n should be nonnegative")))
     (doffs > 0 && (doffs + n - 1) <= length(dest) &&
     soffs > 0 && (soffs + n - 1) <= length(src)) || throw(ArgumentError("out of range arguments to copyto! on ChainedVector"))
@@ -379,7 +384,7 @@ function Base.empty!(A::ChainedVector)
     return A
 end
 
-function Base.copy(A::ChainedVector{T, AT}) where {T, AT}
+function Base.copy(A::ChainedVector{T}) where {T}
     isempty(A) && return T[]
     B = similar(A.arrays[1], length(A))
     off = 1
@@ -837,16 +842,4 @@ Base.replace!(f::Base.Callable, a::ChainedVector) = (foreach(A -> replace!(f, A)
 Base.replace(a::ChainedVector, old_new::Pair...; count::Union{Integer,Nothing}=nothing) = ChainedVector([replace(A, old_new...; count=count) for A in a.arrays])
 Base.replace!(a::ChainedVector, old_new::Pair...; count::Integer=typemax(Int)) = (foreach(A -> replace!(A, old_new...; count=count), a.arrays); return a)
 
-import Base.Broadcast: Broadcasted
-struct ChainedVectorStyle <: Broadcast.AbstractArrayStyle{1} end
-Base.BroadcastStyle(::Type{<:ChainedVector}) = ChainedVectorStyle()
-Base.similar(bc::Broadcasted{ChainedVectorStyle}, ::Type{T}) where {T} = similar(bc.args[1], T, length(bc))
-
-function Base.copyto!(dest::ChainedVector, bc::Broadcasted{ChainedVectorStyle})
-    for (x, y) in zip(dest.arrays, bc.args[1].arrays)
-        for i in eachindex(x)
-            @inbounds x[i] = bc.f(y[i])
-        end
-    end
-    return dest
-end
+Base.Broadcast.broadcasted(f::F, A::ChainedVector) where {F} = map(f, A)
