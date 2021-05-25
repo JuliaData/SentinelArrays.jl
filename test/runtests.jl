@@ -239,7 +239,7 @@ s = SentinelArray(collect(1:5))
 c = ChainedVector([s, s, s])
 c2 = copy(c)
 @test length(c) == length(c2)
-@test c2 isa SentinelVector
+@test c2 isa Vector
 
 # deleteat! of SentinelArray w/ underlying ChainedVector w/ UndefInitializer
 x = SentinelArray(ChainedVector([Vector{String}(undef, 5)]))

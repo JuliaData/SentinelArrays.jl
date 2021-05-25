@@ -202,6 +202,15 @@ end
     return v
 end
 
+function Base.getindex(A::ChainedVector{T}, inds::AbstractVector{<:ChainedVectorIndex}) where {T}
+    len = length(inds)
+    x = Vector{T}(undef, len)
+    for i = 1:len
+        x[i] = inds[i][]
+    end
+    return x
+end
+
 # efficient iteration via eachindex
 struct IndexIterator{A}
     arrays::Vector{A}
