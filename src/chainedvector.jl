@@ -568,8 +568,9 @@ function Base.vcat(A::ChainedVector{T, AT}, arrays::ChainedVector{T, AT}...) whe
 end
 
 function Base.append!(A::ChainedVector{T, AT}, B::AT) where {T, AT <: AbstractVector{T}}
+    lastind = length(A.arrays) == 0 ? 0 : A.inds[end]
     push!(A.arrays, B)
-    push!(A.inds, A.inds[end] + length(B))
+    push!(A.inds, lastind + length(B))
     return A
 end
 

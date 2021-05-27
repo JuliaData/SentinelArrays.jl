@@ -437,3 +437,18 @@ end
     end
     @test cnt == 0
 end
+
+@testset "empty ChainedVector" begin
+    x = ChainedVector([[]])
+    @test isempty(x)
+    @test length(x) == 0
+    @test_throws BoundsError x[1]
+    @test_throws BoundsError x[end]
+
+    push!(x, 1)
+    @test x[end] == 1
+
+    empty!(x)
+    append!(x, [2])
+    @test x[end] == 2
+end
