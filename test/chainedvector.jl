@@ -361,6 +361,11 @@
     x2 = map(identity, x)
     copyto!(x2, 2, y, 2)
     @test x2[2:end] == y[2:end]
+
+    # https://github.com/JuliaData/SentinelArrays.jl/issues/45
+    a = []
+    append!(a, ChainedVector([[1, 2, 3]]))
+    @test length(a) == 3
 end
 
 @testset "iteration protocol on ChainedVector" begin
