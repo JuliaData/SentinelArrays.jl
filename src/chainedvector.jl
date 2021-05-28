@@ -592,6 +592,13 @@ function Base.append!(A::ChainedVector{T}, B) where {T}
     return A
 end
 
+function Base.append!(a::Vector, items::ChainedVector)
+    n = length(items)
+    Base._growend!(a, n)
+    copyto!(a, length(a)-n+1, items, 1, n)
+    return a
+end
+
 function Base.prepend!(A::ChainedVector{T, AT}, B::AT) where {T, AT <: AbstractVector{T}}
     pushfirst!(A.arrays, B)
     n = length(B)
