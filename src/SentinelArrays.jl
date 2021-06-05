@@ -4,11 +4,14 @@ using Dates, Random
 
 export SentinelArray, SentinelMatrix, SentinelVector, SentinelCollisionError, ChainedVector, MissingVector
 
-const RNG = [MersenneTwister()]
+const RNG = []
 
 function __init__()
-    Threads.resize_nthreads!(RNG)
-    return
+    nthr = Threads.nthreads()
+    resize!(RNG, nthr)
+    for i = 1:nthr
+        RNG[i] = MersenneTwister()
+    end
 end
 
 """
