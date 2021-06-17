@@ -366,6 +366,9 @@
     a = []
     append!(a, ChainedVector([[1, 2, 3]]))
     @test length(a) == 3
+
+    # https://github.com/JuliaData/CSV.jl/issues/842
+    @test size(eachindex(ChainedVector([["a"]]))) == (1,)
 end
 
 @testset "iteration protocol on ChainedVector" begin

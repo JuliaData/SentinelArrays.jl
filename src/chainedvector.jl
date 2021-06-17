@@ -216,6 +216,7 @@ struct IndexIterator{A}
     arrays::Vector{A}
 end
 
+Base.size(x::IndexIterator) = (length(x),)
 Base.length(x::IndexIterator) = sum(length, x.arrays)
 Base.eltype(::Type{IndexIterator{A}}) where {A <: AbstractVector} = ChainedVectorIndex{A}
 
