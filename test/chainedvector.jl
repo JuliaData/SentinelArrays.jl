@@ -369,6 +369,23 @@
 
     # https://github.com/JuliaData/CSV.jl/issues/842
     @test size(eachindex(ChainedVector([["a"]]))) == (1,)
+
+    x = [1, 2, 3]
+    append!(x, ChainedVector([[1, 2, 3]]))
+    @test length(x) == 6
+    @test x == [1, 2, 3, 1, 2, 3]
+
+    x = ChainedVector([[1,2,3], [4,5,6], [7,8,9,10]])
+    for (i, idx) in enumerate(eachindex(x))
+       @test i == idx
+    end
+
+    i1 = first(eachindex(x))
+    @test convert(Int,  i1) isa Int
+    @test convert(Int8,  i1) isa Int8
+    @test i1 == 1
+    @test i1 < 2
+    @test isless(i1, 2)
 end
 
 @testset "iteration protocol on ChainedVector" begin

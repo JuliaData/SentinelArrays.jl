@@ -186,19 +186,31 @@ Base.@propagate_inbounds function Base.setindex!(A::ChainedVector, v, i::Integer
 end
 
 # custom index type used in eachindex
-struct ChainedVectorIndex{A}
+struct ChainedVectorIndex{A} <: Integer
     array::A
+    array_i::Int
     i::Int
 end
 
-@inline Base.getindex(x::ChainedVectorIndex) = @inbounds x.array[x.i]
+import Base: +, -, *, <, >, <=, >=, ==
+for f in (:+, :-, :*, :<, :>, :<=, :>=, :(==))
+    @eval $f(a::ChainedVectorIndex, b::Integer) = $f(a.i, b)
+    @eval $f(a::Integer, b::ChainedVectorIndex) = $f(a, b.i)
+end
+Base.convert(::Type{T}, x::ChainedVectorIndex) where {T <: Union{Signed, Unsigned}} = convert(T, x.i)
+
+@inline Base.getindex(x::ChainedVectorIndex) = @inbounds x.array[x.array_i]
 
 @inline function Base.getindex(A::ChainedVector, x::ChainedVectorIndex)
-    return @inbounds x.array[x.i]
+    return @inbounds x.array[x.array_i]
+end
+
+function Base.getindex(A::AbstractArray, x::ChainedVectorIndex)
+    return A[x.i]
 end
 
 @inline function Base.setindex!(A::ChainedVector, v, x::ChainedVectorIndex)
-    @inbounds x.array[x.i] = v
+    @inbounds x.array[x.array_i] = v
     return v
 end
 
@@ -229,21 +241,21 @@ end
 @inline function Base.iterate(x::IndexIterator)
     arrays = x.arrays
     length(arrays) == 0 && return nothing
-    chunkidx = 1
+    chunkidx = chunk_i = 1
     @inbounds chunk = arrays[chunkidx]
     # we already ran cleanup! so chunks are guaranteed non-empty
-    return ChainedVectorIndex(chunk, 1), (arrays, chunkidx, chunk, length(chunk), 2)
+    return ChainedVectorIndex(chunk, chunk_i, 1), (arrays, chunkidx, chunk, length(chunk), chunk_i + 1, 2)
 end
 
-@inline function Base.iterate(x::IndexIterator, (arrays, chunkidx, chunk, chunklen, i))
-    if i > chunklen
+@inline function Base.iterate(x::IndexIterator, (arrays, chunkidx, chunk, chunklen, chunk_i, i))
+    if chunk_i > chunklen
         chunkidx += 1
         chunkidx > length(arrays) && return nothing
         @inbounds chunk = arrays[chunkidx]
         chunklen = length(chunk)
-        i = 1
+        chunk_i = 1
     end
-    return ChainedVectorIndex(chunk, i), (arrays, chunkidx, chunk, chunklen, i + 1)
+    return ChainedVectorIndex(chunk, chunk_i, i), (arrays, chunkidx, chunk, chunklen, chunk_i + 1, i + 1)
 end
 
 @inline function Base.iterate(A::ChainedVector)
@@ -591,13 +603,6 @@ function Base.append!(A::ChainedVector{T}, B) where {T}
         push!(A, x)
     end
     return A
-end
-
-function Base.append!(a::Vector, items::ChainedVector)
-    n = length(items)
-    Base._growend!(a, n)
-    copyto!(a, length(a)-n+1, items, 1, n)
-    return a
 end
 
 function Base.prepend!(A::ChainedVector{T, AT}, B::AT) where {T, AT <: AbstractVector{T}}
