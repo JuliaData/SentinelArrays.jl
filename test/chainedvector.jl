@@ -374,6 +374,17 @@
     append!(x, ChainedVector([[1, 2, 3]]))
     @test length(x) == 6
     @test x == [1, 2, 3, 1, 2, 3]
+
+    for (i, idx) in enumerate(eachindex(x))
+       @test i == idx.i
+    end
+
+    i1 = first(eachindex(x))
+    @test convert(Int,  i1) isa Int
+    @test convert(Int8,  i1) isa Int8
+    @test i1 == 1
+    @test i1 < 2
+    @test isless(i1, 2)
 end
 
 @testset "iteration protocol on ChainedVector" begin
