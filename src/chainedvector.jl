@@ -192,8 +192,8 @@ struct ChainedVectorIndex{A} <: Integer
     i::Int
 end
 
-import Base: +, -, *, <, >, <=, >=
-for f in (:+, :-, :*, :<, :>, :<=, :>=)
+import Base: +, -, *, <, >, <=, >=, ==
+for f in (:+, :-, :*, :<, :>, :<=, :>=, :(==))
     @eval $f(a::ChainedVectorIndex, b::Integer) = $f(a.i, b)
     @eval $f(a::Integer, b::ChainedVectorIndex) = $f(a, b.i)
 end

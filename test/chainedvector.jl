@@ -375,8 +375,9 @@
     @test length(x) == 6
     @test x == [1, 2, 3, 1, 2, 3]
 
+    x = ChainedVector([[1,2,3], [4,5,6], [7,8,9,10]])
     for (i, idx) in enumerate(eachindex(x))
-       @test i == idx.i
+       @test i == idx
     end
 
     i1 = first(eachindex(x))
