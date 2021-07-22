@@ -205,10 +205,6 @@ Base.convert(::Type{T}, x::ChainedVectorIndex) where {T <: Union{Signed, Unsigne
     return @inbounds x.array[x.array_i]
 end
 
-function Base.getindex(A::AbstractArray, x::ChainedVectorIndex)
-    return A[x.i]
-end
-
 @inline function Base.setindex!(A::ChainedVector, v, x::ChainedVectorIndex)
     @inbounds x.array[x.array_i] = v
     return v
