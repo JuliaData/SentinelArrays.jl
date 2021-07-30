@@ -22,8 +22,7 @@ end
 
 # case where the given arrays are not homogenous
 function ChainedVector(arrays::Vector{A}) where {A <: AbstractVector}
-    T = Base.promote_typeof(arrays...)
-    return ChainedVector(copyto!(Vector{T}(undef, length(arrays)), arrays))
+    return ChainedVector(collect(promote(arrays...)))
 end
 
 @inline function setinds!(arrays, inds)
