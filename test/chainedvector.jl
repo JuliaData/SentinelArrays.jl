@@ -193,6 +193,10 @@
     y = map(v -> v == 1 ? missing : v, x)
     @test y isa ChainedVector{Union{Missing,Int}}
 
+    x = ChainedVector(Vector{Float64}[])
+    y = map(v -> v > 1, x)
+    @test y isa ChainedVector{Bool}
+
     # map!
     x = ChainedVector([[1,2,3], [4,5,6], [7,8,9,10]])
     y = copy(x)
