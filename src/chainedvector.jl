@@ -635,6 +635,7 @@ Base.in(x, A::ChainedVector) = any(y->x in y, A.arrays)
 Base.foreach(f::F, x::ChainedVector) where {F} = foreach(x->foreach(f, x), x.arrays)
 function Base.map(f::F, x::ChainedVector) where {F}
     fxs = [map(f, y) for y in x.arrays]
+    all(isempty, fxs) && return ChainedVector(fxs)
     T = Base.promote_typeof(fxs...)
     return ChainedVector(copyto!(Vector{T}(undef, length(x.inds)), fxs))
 end
