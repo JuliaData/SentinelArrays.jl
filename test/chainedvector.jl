@@ -188,6 +188,11 @@
     y = map(x -> x + 1, x)
     @test all(x -> x[1] == x[2] + 1, zip(y, x))
 
+    # https://github.com/JuliaData/SentinelArrays.jl/issues/57
+    x = ChainedVector([[1,2,3], [4,5,6], [7,8,9,10]])
+    y = map(v -> v == 1 ? missing : v, x)
+    @test y isa ChainedVector{Union{Missing,Int}}
+
     # map!
     x = ChainedVector([[1,2,3], [4,5,6], [7,8,9,10]])
     y = copy(x)
