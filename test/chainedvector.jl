@@ -189,7 +189,11 @@
     @test all(x -> x[1] == x[2] + 1, zip(y, x))
 
     # https://github.com/JuliaData/SentinelArrays.jl/issues/57
-    @test ChainedVector([[1], ["a"]]) isa ChainedVector{Any}
+    x = ChainedVector([[1], [2], [3]])
+    y = map(v -> v == 1 ? missing : v, x)
+    @test y isa ChainedVector{Union{Missing,Int}}
+    @test isequal(y, ChainedVector([[missing], [2], [3]]))
+
     x = ChainedVector([[1,2,3], [4,5,6], [7,8,9,10]])
     y = map(v -> v == 1 ? missing : v, x)
     @test y isa ChainedVector{Union{Missing,Int}}
