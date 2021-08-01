@@ -20,16 +20,9 @@ function ChainedVector(arrays::Vector{A}) where {A <: AbstractVector{T}} where {
     return ChainedVector{T, A}(arrays, inds)
 end
 
-function ChainedVector{T}(arrays::Vector{A}) where {A <: AbstractVector{T}} where {T}
-    return ChainedVector(arrays)
-end
-
 # case where the given arrays are not homogenous
 function ChainedVector(arrays::Vector{<:AbstractVector})
-    ChainedVector{Base.promote_eltypeof(arrays...)}(arrays)
-end
-
-function ChainedVector{T}(arrays::Vector{<:AbstractVector}) where T
+    T = Base.promote_eltypeof(arrays...)
     arrayTs = map(arrays) do array
         eltype(array) === T ? array : Base.copyto!(similar(array, T), array)
     end

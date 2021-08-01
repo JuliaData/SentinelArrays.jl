@@ -189,8 +189,6 @@
     @test all(x -> x[1] == x[2] + 1, zip(y, x))
 
     # https://github.com/JuliaData/SentinelArrays.jl/issues/57
-    @test ChainedVector{Float64}([[1, 2], [3]]) == ChainedVector([[1.0, 2.0], [3.0]])
-
     cx1 = ChainedVector([[1, 2], [3]])
     cx2 = ChainedVector([[1.1, 2.2], [3.3]])
     @test ChainedVector([cx1, cx2]) isa ChainedVector{Float64, <:ChainedVector{Float64}}
