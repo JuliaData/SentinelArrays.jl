@@ -24,7 +24,7 @@ end
 function ChainedVector(arrays::Vector{<:AbstractVector})
     T = Base.promote_eltypeof(arrays...)
     arrayTs = map(arrays) do array
-        eltype(array) === T ? array : Base.copyto!(similar(array, T), array)
+        eltype(array) === T ? array : copyto!(similar(array, T), array)
     end
     return ChainedVector(arrayTs)
 end
