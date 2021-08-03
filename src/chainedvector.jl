@@ -20,6 +20,15 @@ function ChainedVector(arrays::Vector{A}) where {A <: AbstractVector{T}} where {
     return ChainedVector{T, A}(arrays, inds)
 end
 
+# case where the given arrays are not homogenous
+function ChainedVector(arrays::Vector{<:AbstractVector})
+    T = Base.promote_eltypeof(arrays...)
+    arrayTs = map(arrays) do array
+        eltype(array) === T ? array : copyto!(similar(array, T), array)
+    end
+    return ChainedVector(arrayTs)
+end
+
 @inline function setinds!(arrays, inds)
     cleanup!(arrays, inds)
     x = 0
@@ -273,7 +282,7 @@ end
 Base.similar(x::ChainedVector) = similar(x, length(x))
 Base.similar(x::ChainedVector{T}, len::Base.DimOrInd) where {T} = similar(x, T, len)
 
-function Base.similar(x::ChainedVector{T}, ::Type{S}, len::Base.DimOrInd) where {T, S}
+function Base.similar(x::ChainedVector{T}, ::Type{S}, len::Base.DimOrInd=length(x)) where {T, S}
     if len == length(x)
         # return same chunks structure as x
         return ChainedVector([similar(A, S, length(A)) for A in x.arrays])
