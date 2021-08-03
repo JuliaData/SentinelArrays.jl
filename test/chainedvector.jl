@@ -229,9 +229,9 @@
     @test findmin(x) == (1, 1)
     @test findmin(x -> x + 1, x) == (2, 1)
     @test argmax(x) == 10
-    @test argmax(x -> x + 1, x) == 10
+    @test argmax(x -> x + 1, x) == 11
     @test argmin(x) == 1
-    @test argmin(x -> x + 1, x) == 1
+    @test argmin(x -> x + 1, x) == 2
     @test findfirst(iseven, x) == 2
     @test findfirst(x -> x == 10, x) == 10
     @test findfirst(x -> x == 11, x) === nothing
