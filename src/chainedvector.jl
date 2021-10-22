@@ -207,6 +207,7 @@ for f in (:+, :-, :*, :<, :>, :<=, :>=, :(==))
     @eval $f(a::Integer, b::ChainedVectorIndex) = $f(a, b.i)
 end
 Base.convert(::Type{T}, x::ChainedVectorIndex) where {T <: Union{Signed, Unsigned}} = convert(T, x.i)
+Base.hash(x::ChainedVectorIndex, h::UInt) = hash(x.i, h)
 
 @inline Base.getindex(x::ChainedVectorIndex) = @inbounds x.array[x.array_i]
 
