@@ -205,6 +205,7 @@ import Base: +, -, *, <, >, <=, >=, ==
 for f in (:+, :-, :*, :<, :>, :<=, :>=, :(==))
     @eval $f(a::ChainedVectorIndex, b::Integer) = $f(a.i, b)
     @eval $f(a::Integer, b::ChainedVectorIndex) = $f(a, b.i)
+    @eval $f(a::ChainedVectorIndex, b::ChainedVectorIndex) = $f(a.i, b.i)
 end
 Base.convert(::Type{T}, x::ChainedVectorIndex) where {T <: Union{Signed, Unsigned}} = convert(T, x.i)
 Base.hash(x::ChainedVectorIndex, h::UInt) = hash(x.i, h)
