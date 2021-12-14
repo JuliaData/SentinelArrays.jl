@@ -457,6 +457,7 @@ end
     end
     for (aidx, bidx) in zip(eachindex(x), eachindex(y))
         # getindex w/ custom ChainedVectorIndex
+        @test aidx == bidx
         @test x[aidx] == y[bidx]
         @test hash(aidx) == hash(bidx)
     end
