@@ -1,6 +1,5 @@
 function _precompile_()
     ccall(:jl_generating_output, Cint, ()) == 1 || return nothing
-    Base.precompile(Tuple{Core.kwftype(typeof(SentinelArrays.newsentinel!)),NamedTuple{(:force,),Tuple{Bool}},typeof(SentinelArrays.newsentinel!),SentinelArray{Int64,1,Int64,Missing,Array{Int64,1}},Vararg{SentinelArray{Int64,1,Int64,Missing,Array{Int64,1}},N} where N})
     Base.precompile(Tuple{typeof(SentinelArrays.defaultsentinel),Type{T} where T})
     Base.precompile(Tuple{typeof(empty),Dict{Any,Any},Type{Symbol},Type{SentinelArray{Int64,1,Int64,Missing,Array{Int64,1}}}})
     Base.precompile(Tuple{typeof(empty),Dict{Any,Any},Type{Symbol},Type{SentinelArray{Int64,1,Int64,Missing,ChainedVector{Int64,Array{Int64,1}}}}})
