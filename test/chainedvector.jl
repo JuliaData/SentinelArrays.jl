@@ -14,6 +14,8 @@
     empty!(x)
     @test length(x) == 0
     @test copy(x) == x
+    @test typeof(Base.unaliascopy(x)) == typeof(x)
+    @test Base.unaliascopy(x) == x
 
     @test_throws ArgumentError resize!(x, -1)
     resize!(x, 10)
