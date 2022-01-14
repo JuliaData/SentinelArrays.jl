@@ -425,6 +425,11 @@ function Base.copy(A::ChainedVector{T}) where {T}
     return B
 end
 
+function Base.unaliascopy(x::ChainedVector{T, A}) where {T, A}
+    arrays = map(copy, x.arrays)
+    return ChainedVector{T, A}(arrays, copy(x.inds))
+end
+
 function Base.resize!(A::ChainedVector{T, AT}, len) where {T, AT}
     len >= 0 || throw(ArgumentError("`len` must be >= 0 when resizing ChainedVector"))
     len′ = length(A)
