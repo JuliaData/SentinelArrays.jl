@@ -206,7 +206,7 @@ Base.@propagate_inbounds function Base.getindex(A::SentinelArray{T, N, S, V}, i:
     end
 end
 
-unset!(A, i) = isassigned(A, i) && ccall(:jl_arrayunset, Cvoid, (Array, Csize_t), A, i - 1)
+unset!(A, i) = isassigned(A, i) && ccall(:jl_arrayunset, Cvoid, (Any, Csize_t), A, i - 1)
 
 Base.@propagate_inbounds function Base.setindex!(A::SentinelArray{T, N, S, V}, val, i::Int) where {T, N, S, V}
     @boundscheck checkbounds(A, i)
@@ -289,7 +289,7 @@ function Base.deleteat!(A::SentinelVector{T, S, V, AT}, inds) where {T, S, V, AT
     return A
 end
 
-unset!(A::Vector, i) = ccall(:jl_arrayunset, Cvoid, (Array, Csize_t), A, i - 1)
+unset!(A::Vector, i) = ccall(:jl_arrayunset, Cvoid, (Any, Csize_t), A, i - 1)
 
 function _deleteat!(a::SentinelVector, inds)
     n = length(a)
