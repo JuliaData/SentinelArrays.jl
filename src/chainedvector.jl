@@ -397,11 +397,15 @@ function Base.copyto!(dest::ChainedVector{T}, doffs::Union{Signed, Unsigned},
             didx += 1
             @inbounds dchunk = dest.arrays[didx]
             di = 1
+        else
+            di += chunkn
         end
         if chunkn == slen
             sidx += 1
             @inbounds schunk = src.arrays[sidx]
             si = 1
+        else
+            si += chunkn
         end
     end
     return dest
