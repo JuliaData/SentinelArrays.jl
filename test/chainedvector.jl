@@ -383,6 +383,14 @@
     x2 = map(identity, x)
     copyto!(x2, 2, y, 2)
     @test x2[2:end] == y[2:end]
+    # https://github.com/JuliaData/SentinelArrays.jl/issues/71
+    x = ChainedVector([SentinelArray(["a", "b", "c"]), SentinelArray(["d", "e", "f"])])
+    y = similar(x, 10)
+    copyto!(y, 4, x)
+    @test y[4:9] == x
+    for i in [1, 2, 3, 10]
+        @test !isassigned(y, i)
+    end
 
     # https://github.com/JuliaData/SentinelArrays.jl/issues/45
     a = []
