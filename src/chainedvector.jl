@@ -566,6 +566,7 @@ function Base.popfirst!(A::ChainedVector)
 end
 
 Base.@propagate_inbounds function Base.insert!(A::ChainedVector{T, AT}, i::Integer, item) where {T, AT <: AbstractVector{T}}
+    i isa Bool && throw(ArgumentError("invalid index: $i of type Bool"))
     if i == 1 && length(A.arrays) == 0
         push!(A.arrays, similar(AT, 0))
         push!(A.inds, 0)
