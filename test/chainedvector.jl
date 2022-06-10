@@ -47,6 +47,7 @@
     @test_throws ArgumentError pop!(x)
     @test_throws ArgumentError popfirst!(x)
 
+    @test_throws ArgumentError insert!(x, true, 1)
     @test_throws BoundsError insert!(x, 0, 1)
     @test_throws BoundsError insert!(x, 2, 1)
     insert!(x, 1, 1)
