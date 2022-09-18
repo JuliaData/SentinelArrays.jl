@@ -510,3 +510,19 @@ end
     append!(x, [2])
     @test x[end] == 2
 end
+
+@testset "prevind/nextind ChainedVector" begin
+    x = ChainedVector([collect(1:i) for i = 10:100])
+    ind = first(eachindex(x))
+    for i = 1:length(x)
+        @test x[ind] == x[i]
+        ind = nextind(x, ind)
+    end
+    for i = length(x):-1:1
+        @test x[ind] == x[i]
+        ind = prevind(x, ind)
+    end
+    # https://github.com/JuliaData/SentinelArrays.jl/issues/74
+    x = ChainedVector([[true], [false], [true]])
+    @test BitVector(x) == [true, false, true]
+end

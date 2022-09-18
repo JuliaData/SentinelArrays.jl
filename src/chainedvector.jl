@@ -196,6 +196,7 @@ end
 
 # custom index type used in eachindex
 struct ChainedVectorIndex{A} <: Integer
+    arrays_i::Int
     array::A
     array_i::Int
     i::Int
@@ -230,6 +231,40 @@ function Base.getindex(A::ChainedVector{T}, inds::AbstractVector{<:ChainedVector
     return x
 end
 
+function Base.nextind(A::ChainedVector, x::ChainedVectorIndex)
+    chunkidx = x.arrays_i
+    chunk = x.array
+    chunk_i = x.array_i
+    i = x.i
+    if chunk_i < length(chunk)
+        chunk_i += 1
+        i += 1
+    elseif chunkidx < length(A.arrays)
+        chunkidx += 1
+        @inbounds chunk = A.arrays[chunkidx]
+        chunk_i = 1
+        i += 1
+    end
+    return ChainedVectorIndex(chunkidx, chunk, chunk_i, i)
+end
+
+function Base.prevind(A::ChainedVector, x::ChainedVectorIndex)
+    chunkidx = x.arrays_i
+    chunk = x.array
+    chunk_i = x.array_i
+    i = x.i
+    if chunk_i > 1
+        chunk_i -= 1
+        i -= 1
+    elseif chunkidx > 1
+        chunkidx -= 1
+        @inbounds chunk = A.arrays[chunkidx]
+        chunk_i = length(chunk)
+        i -= 1
+    end
+    return ChainedVectorIndex(chunkidx, chunk, chunk_i, i)
+end
+
 # efficient iteration via eachindex
 struct IndexIterator{A}
     arrays::Vector{A}
@@ -251,7 +286,7 @@ end
     chunkidx = chunk_i = 1
     @inbounds chunk = arrays[chunkidx]
     # we already ran cleanup! so chunks are guaranteed non-empty
-    return ChainedVectorIndex(chunk, chunk_i, 1), (arrays, chunkidx, chunk, length(chunk), chunk_i + 1, 2)
+    return ChainedVectorIndex(chunkidx, chunk, chunk_i, 1), (arrays, chunkidx, chunk, length(chunk), chunk_i + 1, 2)
 end
 
 @inline function Base.iterate(x::IndexIterator, (arrays, chunkidx, chunk, chunklen, chunk_i, i))
@@ -262,7 +297,7 @@ end
         chunklen = length(chunk)
         chunk_i = 1
     end
-    return ChainedVectorIndex(chunk, chunk_i, i), (arrays, chunkidx, chunk, chunklen, chunk_i + 1, i + 1)
+    return ChainedVectorIndex(chunkidx, chunk, chunk_i, i), (arrays, chunkidx, chunk, chunklen, chunk_i + 1, i + 1)
 end
 
 @inline function Base.iterate(A::ChainedVector)
