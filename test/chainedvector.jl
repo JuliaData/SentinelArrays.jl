@@ -518,10 +518,13 @@ end
         @test x[ind] == x[i]
         ind = nextind(x, ind)
     end
+    @test_throws BoundsError x[ind]
     for i = length(x):-1:1
-        @test x[ind] == x[i]
         ind = prevind(x, ind)
+        @test x[ind] == x[i]
     end
+    ind = prevind(x, ind)
+    @test_throws BoundsError x[ind]
     # https://github.com/JuliaData/SentinelArrays.jl/issues/74
     x = ChainedVector([[true], [false], [true]])
     @test BitVector(x) == [true, false, true]

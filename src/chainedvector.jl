@@ -213,11 +213,15 @@ Base.hash(x::ChainedVectorIndex, h::UInt) = hash(x.i, h)
 
 @inline Base.getindex(x::ChainedVectorIndex) = @inbounds x.array[x.array_i]
 
-@inline function Base.getindex(A::ChainedVector, x::ChainedVectorIndex)
+Base.checkbounds(::Type{Bool}, A::ChainedVector, ind::ChainedVectorIndex) = 1 <= ind.array_i <= length(ind.array)
+
+Base.@propagate_inbounds function Base.getindex(A::ChainedVector, x::ChainedVectorIndex)
+    @boundscheck checkbounds(A, x)
     return @inbounds x.array[x.array_i]
 end
 
-@inline function Base.setindex!(A::ChainedVector, v, x::ChainedVectorIndex)
+Base.@propagate_inbounds function Base.setindex!(A::ChainedVector, v, x::ChainedVectorIndex)
+    @boundscheck checkbounds(A, x)
     @inbounds x.array[x.array_i] = v
     return v
 end
@@ -244,6 +248,8 @@ function Base.nextind(A::ChainedVector, x::ChainedVectorIndex)
         @inbounds chunk = A.arrays[chunkidx]
         chunk_i = 1
         i += 1
+    else
+        chunk_i += 1 # make sure this goes out of bounds
     end
     return ChainedVectorIndex(chunkidx, chunk, chunk_i, i)
 end
@@ -261,6 +267,8 @@ function Base.prevind(A::ChainedVector, x::ChainedVectorIndex)
         @inbounds chunk = A.arrays[chunkidx]
         chunk_i = length(chunk)
         i -= 1
+    else
+        chunk_i -= 1 # make sure this goes out of bounds
     end
     return ChainedVectorIndex(chunkidx, chunk, chunk_i, i)
 end
