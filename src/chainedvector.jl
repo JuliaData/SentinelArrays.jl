@@ -196,6 +196,7 @@ end
 
 # custom index type used in eachindex
 struct ChainedVectorIndex{A} <: Integer
+    arrays_i::Int
     array::A
     array_i::Int
     i::Int
@@ -212,11 +213,15 @@ Base.hash(x::ChainedVectorIndex, h::UInt) = hash(x.i, h)
 
 @inline Base.getindex(x::ChainedVectorIndex) = @inbounds x.array[x.array_i]
 
-@inline function Base.getindex(A::ChainedVector, x::ChainedVectorIndex)
+Base.checkbounds(::Type{Bool}, A::ChainedVector, ind::ChainedVectorIndex) = 1 <= ind.array_i <= length(ind.array)
+
+Base.@propagate_inbounds function Base.getindex(A::ChainedVector, x::ChainedVectorIndex)
+    @boundscheck checkbounds(A, x)
     return @inbounds x.array[x.array_i]
 end
 
-@inline function Base.setindex!(A::ChainedVector, v, x::ChainedVectorIndex)
+Base.@propagate_inbounds function Base.setindex!(A::ChainedVector, v, x::ChainedVectorIndex)
+    @boundscheck checkbounds(A, x)
     @inbounds x.array[x.array_i] = v
     return v
 end
@@ -228,6 +233,44 @@ function Base.getindex(A::ChainedVector{T}, inds::AbstractVector{<:ChainedVector
         x[i] = inds[i][]
     end
     return x
+end
+
+function Base.nextind(A::ChainedVector, x::ChainedVectorIndex)
+    chunkidx = x.arrays_i
+    chunk = x.array
+    chunk_i = x.array_i
+    i = x.i
+    if chunk_i < length(chunk)
+        chunk_i += 1
+        i += 1
+    elseif chunkidx < length(A.arrays)
+        chunkidx += 1
+        @inbounds chunk = A.arrays[chunkidx]
+        chunk_i = 1
+        i += 1
+    else
+        chunk_i += 1 # make sure this goes out of bounds
+    end
+    return ChainedVectorIndex(chunkidx, chunk, chunk_i, i)
+end
+
+function Base.prevind(A::ChainedVector, x::ChainedVectorIndex)
+    chunkidx = x.arrays_i
+    chunk = x.array
+    chunk_i = x.array_i
+    i = x.i
+    if chunk_i > 1
+        chunk_i -= 1
+        i -= 1
+    elseif chunkidx > 1
+        chunkidx -= 1
+        @inbounds chunk = A.arrays[chunkidx]
+        chunk_i = length(chunk)
+        i -= 1
+    else
+        chunk_i -= 1 # make sure this goes out of bounds
+    end
+    return ChainedVectorIndex(chunkidx, chunk, chunk_i, i)
 end
 
 # efficient iteration via eachindex
@@ -251,7 +294,7 @@ end
     chunkidx = chunk_i = 1
     @inbounds chunk = arrays[chunkidx]
     # we already ran cleanup! so chunks are guaranteed non-empty
-    return ChainedVectorIndex(chunk, chunk_i, 1), (arrays, chunkidx, chunk, length(chunk), chunk_i + 1, 2)
+    return ChainedVectorIndex(chunkidx, chunk, chunk_i, 1), (arrays, chunkidx, chunk, length(chunk), chunk_i + 1, 2)
 end
 
 @inline function Base.iterate(x::IndexIterator, (arrays, chunkidx, chunk, chunklen, chunk_i, i))
@@ -262,7 +305,7 @@ end
         chunklen = length(chunk)
         chunk_i = 1
     end
-    return ChainedVectorIndex(chunk, chunk_i, i), (arrays, chunkidx, chunk, chunklen, chunk_i + 1, i + 1)
+    return ChainedVectorIndex(chunkidx, chunk, chunk_i, i), (arrays, chunkidx, chunk, chunklen, chunk_i + 1, i + 1)
 end
 
 @inline function Base.iterate(A::ChainedVector)

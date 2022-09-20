@@ -194,7 +194,7 @@
     # https://github.com/JuliaData/SentinelArrays.jl/issues/57
     cx1 = ChainedVector([[1, 2], [3]])
     cx2 = ChainedVector([[1.1, 2.2], [3.3]])
-    @test ChainedVector([cx1, cx2]) isa ChainedVector{Float64, <:ChainedVector{Float64}}
+    @test ChainedVector([cx1, cx2]) isa ChainedVector{Float64}
 
     x = ChainedVector([[1], [2], [3]])
     y = map(v -> v == 1 ? missing : v, x)
@@ -509,4 +509,23 @@ end
     empty!(x)
     append!(x, [2])
     @test x[end] == 2
+end
+
+@testset "prevind/nextind ChainedVector" begin
+    x = ChainedVector([collect(1:i) for i = 10:100])
+    ind = first(eachindex(x))
+    for i = 1:length(x)
+        @test x[ind] == x[i]
+        ind = nextind(x, ind)
+    end
+    @test_throws BoundsError x[ind]
+    for i = length(x):-1:1
+        ind = prevind(x, ind)
+        @test x[ind] == x[i]
+    end
+    ind = prevind(x, ind)
+    @test_throws BoundsError x[ind]
+    # https://github.com/JuliaData/SentinelArrays.jl/issues/74
+    x = ChainedVector([[true], [false], [true]])
+    @test BitVector(x) == [true, false, true]
 end
