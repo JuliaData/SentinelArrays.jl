@@ -42,6 +42,12 @@ function Base.pushfirst!(x::MissingVector, ::Missing)
     return x
 end
 
+Base.push!(x::MissingVector, ::T) where {T} =
+    throw(ArgumentError("pushing value of type $T to MissingVector is not allowed"))
+
+Base.pushfirst!(x::MissingVector, ::T) where {T} =
+    throw(ArgumentError("pushing value of type $T to MissingVector is not allowed"))
+
 Base.@propagate_inbounds function Base.deleteat!(x::MissingVector, i::Integer)
     @boundscheck checkbounds(x, i)
     x.len -= 1
@@ -88,6 +94,9 @@ Base.@propagate_inbounds function Base.insert!(x::MissingVector, i::Integer, ::M
     x.len += 1
     return x
 end
+
+Base.insert!(x::MissingVector, i::Integer, ::T) where {T} =
+    throw(ArgumentError("inserting value of type $T to MissingVector is not allowed"))
 
 function Base.vcat(x::MissingVector, arrays::MissingVector...)
     A = MissingVector(x.len)
