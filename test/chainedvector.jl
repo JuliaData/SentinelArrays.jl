@@ -529,3 +529,13 @@ end
     x = ChainedVector([[true], [false], [true]])
     @test BitVector(x) == [true, false, true]
 end
+
+@testset "MissingVector resizing" begin
+    v = MissingVector(1)
+    @test isequal(push!(v, missing), [missing, missing])
+    @test isequal(pushfirst!(v, missing), [missing, missing, missing])
+    @test isequal(insert!(v, 2, missing), [missing, missing, missing, missing])
+    @test_throws ArgumentError push!(v, 1)
+    @test_throws ArgumentError pushfirst!(v, 1.0)
+    @test_throws ArgumentError insert!(v, 2, [missing])
+end
