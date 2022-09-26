@@ -9,7 +9,7 @@ using SentinelArrays, Test, Random
 # then tried to `setindex!` to the _NEXT_ chosen sentinel value
 # then the element getting set would end up `missing` (because it == the sentinel value)
 # instead of the sentinel value getting cycled to something else
-Random.seed!(SentinelArrays.RNG[1], 0)
+Random.seed!(0)
 x = SentinelVector{Int64}(undef, 1)
 x[1] = 1
 x.sentinel = 1369352191816061504

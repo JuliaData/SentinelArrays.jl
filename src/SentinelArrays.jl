@@ -4,16 +4,6 @@ using Dates, Random
 
 export SentinelArray, SentinelMatrix, SentinelVector, SentinelCollisionError, ChainedVector, MissingVector
 
-const RNG = []
-
-function __init__()
-    nthr = Threads.nthreads()
-    resize!(RNG, nthr)
-    for i = 1:nthr
-        RNG[i] = MersenneTwister()
-    end
-end
-
 """
     SentinelArray(A::AbstractArray, sentinel, value)
     SentinelVector{T}(undef, len, sentinel, value)
@@ -75,7 +65,7 @@ const SentinelMatrix{T} = SentinelArray{T, 2}
 
 defaultvalue(T) = missing
 
-newsentinel(T) = !isbitstype(T) ? undef : reinterpret(T, rand(RNG[Threads.threadid()], UInt8, sizeof(T)))[1]
+newsentinel(T) = !isbitstype(T) ? undef : reinterpret(T, rand(UInt8, sizeof(T)))[1]
 defaultsentinel(T) = !isbitstype(T) ? undef : Base.issingletontype(T) ? throw(ArgumentError("singleton type $T not allowed in a SentinelArray")) : reinterpret(T, fill(0xff, sizeof(T)))[1]
 
 # constructors
