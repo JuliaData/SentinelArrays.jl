@@ -327,7 +327,8 @@ end
 Base.similar(x::ChainedVector) = similar(x, length(x))
 Base.similar(x::ChainedVector{T}, len::Base.DimOrInd) where {T} = similar(x, T, len)
 
-function Base.similar(x::ChainedVector{T}, ::Type{S}, len::Base.DimOrInd=length(x)) where {T, S}
+function Base.similar(x::ChainedVector{T}, ::Type{S}, _len::Base.DimOrInd=length(x)) where {T, S}
+    len = _len isa Integer ? _len : length(_len)
     if len == length(x)
         # return same chunks structure as x
         return ChainedVector([similar(A, S, length(A)) for A in x.arrays])

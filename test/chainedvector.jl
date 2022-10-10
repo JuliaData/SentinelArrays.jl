@@ -417,6 +417,10 @@
     @test i1 == 1
     @test i1 < 2
     @test isless(i1, 2)
+
+    # https://github.com/JuliaData/SentinelArrays.jl/issues/79
+    v = ChainedVector([rand(5), rand(5)])
+    @test (rand(10,10) * v) isa ChainedVector
 end
 
 @testset "iteration protocol on ChainedVector" begin
