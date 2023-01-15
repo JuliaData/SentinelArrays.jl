@@ -65,8 +65,10 @@ const SentinelMatrix{T} = SentinelArray{T, 2}
 
 defaultvalue(T) = missing
 
-newsentinel(T) = !isbitstype(T) ? undef : reinterpret(T, rand(UInt8, sizeof(T)))[1]
-defaultsentinel(T) = !isbitstype(T) ? undef : Base.issingletontype(T) ? throw(ArgumentError("singleton type $T not allowed in a SentinelArray")) : reinterpret(T, fill(0xff, sizeof(T)))[1]
+_newsentinel(T) = reinterpret(T, rand(UInt8, sizeof(T)))[1]
+newsentinel(T) = !isbitstype(T) ? undef : Base.invokelatest(_newsentinel, T)
+_defaultsentinel(T) = reinterpret(T, fill(0xff, sizeof(T)))[1]
+defaultsentinel(T) = !isbitstype(T) ? undef : Base.issingletontype(T) ? throw(ArgumentError("singleton type $T not allowed in a SentinelArray")) : Base.invokelatest(_defaultsentinel, T)
 
 # constructors
 function SentinelArray{T, N}(::UndefInitializer, dims::Tuple{Vararg{Integer}}, s=nothing, v=defaultvalue(T)) where {T, N}
