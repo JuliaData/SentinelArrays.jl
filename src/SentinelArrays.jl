@@ -65,8 +65,10 @@ const SentinelMatrix{T} = SentinelArray{T, 2}
 
 defaultvalue(T) = missing
 
-newsentinel(T) = !isbitstype(T) ? undef : reinterpret(T, rand(UInt8, sizeof(T)))[1]
-defaultsentinel(T) = !isbitstype(T) ? undef : Base.issingletontype(T) ? throw(ArgumentError("singleton type $T not allowed in a SentinelArray")) : reinterpret(T, fill(0xff, sizeof(T)))[1]
+_newsentinel(T) = reinterpret(T, rand(UInt8, sizeof(T)))[1]
+newsentinel(T) = !isbitstype(T) ? undef : Base.invokelatest(_newsentinel, T)
+_defaultsentinel(T) = reinterpret(T, fill(0xff, sizeof(T)))[1]
+defaultsentinel(T) = !isbitstype(T) ? undef : Base.issingletontype(T) ? throw(ArgumentError("singleton type $T not allowed in a SentinelArray")) : Base.invokelatest(_defaultsentinel, T)
 
 # constructors
 function SentinelArray{T, N}(::UndefInitializer, dims::Tuple{Vararg{Integer}}, s=nothing, v=defaultvalue(T)) where {T, N}
@@ -125,7 +127,7 @@ struct SentinelCollisionError <: Exception
     msg
 end
 
-function newsentinel!(arrays::SentinelArray{T, N, S, V}...; force::Bool=true) where {T, N, S, V}
+function _newsentinel!(arrays::SentinelArray{T, N, S, V}...; newsent, force::Bool=true) where {T, N, S, V}
     if S === UndefInitializer
         # undef can't be recoded
         return
@@ -139,7 +141,6 @@ function newsentinel!(arrays::SentinelArray{T, N, S, V}...; force::Bool=true) wh
         end
     end
     attempts = 0
-    newsent = newsentinel(T)
     # find a new sentinel that doesn't already exist in parent
     while true
         foundnewsent = eq(oldsent, newsent)
@@ -165,6 +166,8 @@ function newsentinel!(arrays::SentinelArray{T, N, S, V}...; force::Bool=true) wh
     end
     return
 end
+newsentinel!(arrays::SentinelArray{T, N, S, V}...; kwargs...) where {T, N, S, V} =
+    Base.invokelatest(_newsentinel!, arrays...; newsent=newsentinel(T), kwargs...)
 
 # Basic AbstractArray interface definitions
 Base.size(A::SentinelArray) = size(parent(A))
