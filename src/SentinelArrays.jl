@@ -275,7 +275,7 @@ function Base.deleteat!(A::SentinelVector{T, S, V, AT}, inds) where {T, S, V, AT
             end
             p += !i
         end
-        deleteat!(parent(A), n - p + 2:n)
+        deleteat!(parent(A), p:n)
     else
         _deleteat!(A, inds)
     end
