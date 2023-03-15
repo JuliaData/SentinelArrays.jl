@@ -777,7 +777,9 @@ Base.any(x::ChainedVector) = any(y -> any(y), x.arrays)
 Base.all(f::Function, x::ChainedVector) = all(y -> all(f, y), x.arrays)
 Base.all(x::ChainedVector) = all(y -> all(y), x.arrays)
 
-Base.reduce(op::OP, x::ChainedVector) where {OP} = reduce(op, (reduce(op, y) for y in x.arrays))
+for optype in (:Any, :hcat, :vcat)
+    @eval Base.reduce(op::typeof($optype), x::ChainedVector) = reduce(op, (reduce(op, y) for y in x.arrays))
+end
 Base.foldl(op::OP, x::ChainedVector) where {OP} = foldl(op, (foldl(op, y) for y in x.arrays))
 Base.foldr(op::OP, x::ChainedVector) where {OP} = foldr(op, (foldr(op, y) for y in x.arrays))
 Base.mapreduce(f::F, op::OP, x::ChainedVector) where {F, OP} = reduce(op, (mapreduce(f, op, y) for y in x.arrays))
