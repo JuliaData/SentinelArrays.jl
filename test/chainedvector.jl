@@ -577,3 +577,19 @@ end
         @test deleteat!(v2, m2) == deleteat!(s2, m2)
     end
 end
+
+@testset "Method ambiguities" begin
+    # some objects to use for testing current ambiguities
+    cv = ChainedVector([[1, 2], [3, 4]], [5, 6])
+    pda = PermutedDimsArray([1 2; 3 4], [2, 1])
+    sv = SparseArrays.SparseVector(4, [2, 3], [2.0, 3.0])
+    fix2in = Base.Fix2(in, [1, 2])
+
+    @test_broken ==(SentinelArrays.ChainedVectorIndex(1, 2, 3, 4), BigInt(21)) isa Any
+    @test_broken reduce(hcat, cv) isa Any
+    @test_broken reduce(vcat, cv) isa Any
+    @test_broken broadcasted(Base.Broadcast.BroadcastStyle(), cv) isa Any
+    @test_broken copyto!(pda, cv) isa Any
+    @test_broken copyto!(sv, cv) isa Any
+    @test_broken findall(fix2in, cv) isa Any
+end
