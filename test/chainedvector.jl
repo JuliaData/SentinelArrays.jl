@@ -589,7 +589,7 @@ end
     @test ==(SentinelArrays.ChainedVectorIndex(1, 2, 3, 4), BigInt(21)) isa Any
     @test reduce(hcat, cv_of_abstractvectors) isa Any
     @test reduce(vcat, cv_of_abstractvectors) isa Any
-    @test Base.broadcasted(Base.Broadcast.ArrayStyle{Matrix}(), cv) isa Any
+    @test_throws "reserved" Base.broadcasted(Base.Broadcast.ArrayStyle{Matrix}(), cv)
     @test_broken copyto!(pda_1dim, cv) isa Any
     @test_broken copyto!(sv, cv) isa Any
     @test_broken findall(fix2in, cv) isa Any

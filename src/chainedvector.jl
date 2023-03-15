@@ -931,3 +931,6 @@ Base.replace(a::ChainedVector, old_new::Pair...; count::Union{Integer,Nothing}=n
 Base.replace!(a::ChainedVector, old_new::Pair...; count::Integer=typemax(Int)) = (foreach(A -> replace!(A, old_new...; count=count), a.arrays); return a)
 
 Base.Broadcast.broadcasted(f::F, A::ChainedVector) where {F} = map(f, A)
+function Base.Broadcast.broadcasted(s::S, c::ChainedVector) where {S<:Base.Broadcast.BroadcastStyle}
+    error("Broadcasting with BroadcastStyle $s and ChainedVector $c is reserved.")
+end
