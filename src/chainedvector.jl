@@ -382,7 +382,9 @@ end
 
 Base.copyto!(dest::AbstractVector, src::ChainedVector) =
     copyto!(dest, 1, src, 1, length(src))
-Base.copyto!(dest::AbstractVector, doffs::Union{Signed, Unsigned}, src::ChainedVector) =
+Base.copyto!(dest::PermutedDimsArray{T, 1}, src::ChainedVector{T, A} where {A<:AbstractVector{T}}) where {T} =
+    copyto!(dest, 1, src, 1, length(src))
+Base.copyto!(dest::AbstractVector, doffs::Union{Signed,Unsigned}, src::ChainedVector) =
     copyto!(dest, doffs, src, 1, length(src))
 Base.copyto!(dest::AbstractVector, doffs::Union{Signed, Unsigned}, src::ChainedVector, soffs::Union{Signed, Unsigned}) =
     copyto!(dest, doffs, src, soffs, length(src) - soffs + 1)

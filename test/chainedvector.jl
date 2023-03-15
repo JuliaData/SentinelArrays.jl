@@ -582,7 +582,7 @@ end
     # some objects to use for testing current ambiguities
     cv = ChainedVector([[1, 2], [3, 4]], [5, 6])
     cv_of_abstractvectors = ChainedVector([[1:4, 2:5], [3:6, 4:7]], [5, 6])
-    pda_1dim = PermutedDimsArray([1, 2], [1,])
+    pda_1dim = PermutedDimsArray(1:6 |> collect, [1,])
     sv = SparseArrays.SparseVector(4, [2, 3], [2.0, 3.0])
     fix2in = Base.Fix2(in, [1, 2])
 
@@ -590,7 +590,7 @@ end
     @test reduce(hcat, cv_of_abstractvectors) isa Any
     @test reduce(vcat, cv_of_abstractvectors) isa Any
     @test_throws "reserved" Base.broadcasted(Base.Broadcast.ArrayStyle{Matrix}(), cv)
-    @test_broken copyto!(pda_1dim, cv) isa Any
+    @test copyto!(pda_1dim, cv) isa Any
     @test_broken copyto!(sv, cv) isa Any
     @test_broken findall(fix2in, cv) isa Any
 end
