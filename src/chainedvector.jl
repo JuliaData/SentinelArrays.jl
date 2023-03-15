@@ -906,6 +906,7 @@ function Base.findall(A::ChainedVector{Bool})
 end
 
 Base.findall(f::Function, x::ChainedVector) = findall(map(f, x))
+Base.findall(f::Base.Fix2{typeof(in)}, x::ChainedVector) = findall(map(f, x))
 
 function Base.filter(f, a::ChainedVector{T}) where {T}
     j = 1
