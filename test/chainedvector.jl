@@ -591,6 +591,7 @@ end
     @test reduce(vcat, cv_of_abstractvectors) isa Any
     @test_throws "reserved" Base.broadcasted(Base.Broadcast.ArrayStyle{Matrix}(), cv)
     @test copyto!(pda_1dim, cv) isa Any
+    @test copyto!(pda_1dim, 1, cv) isa Any
     @test findall(fix2in, cv) isa Any
     # I think this should not be fixed by us as long as we don't import SparseArrays:
     @test_throws MethodError copyto!(sv, cv) isa Any
