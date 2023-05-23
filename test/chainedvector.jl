@@ -596,3 +596,18 @@ end
     # I think this should not be fixed by us as long as we don't import SparseArrays:
     @test_throws MethodError copyto!(sv, cv) isa Any
 end
+
+@testset "ChainedVectorIndex arithmetic" begin
+    # Metaprogramming defines these operations for (:+, :-, :*, :<, :>, :<=, :>=, :(==)), test only +
+    cvi = SentinelArrays.ChainedVectorIndex(1, 2, 3, 4)
+    @test cvi + 1 == 5
+    @test cvi + BigInt(21) == 25
+    @test 1 + cvi == 5
+    @test BigInt(21) + cvi == 25
+    @test cvi + cvi == 8
+end
+
+@testset "Broadcasting a ChainedVector" begin
+    cv = ChainedVector([[1, 2], [3, 4]], [5, 6])
+    @test Base.Fix2(^, 2).(cv) |> collect == (1:4) .^ 2 |> collect
+end
