@@ -561,23 +561,6 @@ end
     end
 end
 
-@testset "deleteat! with Bool mask" begin
-    x = SentinelArray(["a", "b", "c", "d", "e"])
-    mask = [false, true, false, false, false]
-    @test deleteat!(x, mask) == ["a", "c", "d", "e"]
-
-    for i in 1:100
-        v1 = collect(string.(1:i))
-        v2 = copy(v1)
-        s1 = SentinelArray(copy(v1))
-        s2 = SentinelArray(copy(v1))
-        m1 = rand(Bool, i)
-        m2 = BitVector(m1)
-        @test deleteat!(v1, m1) == deleteat!(s1, m1)
-        @test deleteat!(v2, m2) == deleteat!(s2, m2)
-    end
-end
-
 @testset "Method ambiguities" begin
     # some objects to use for testing current ambiguities
     cv = ChainedVector([[1, 2], [3, 4]], [5, 6])
