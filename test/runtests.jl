@@ -376,3 +376,4 @@ deleteat!(c2, Int[])
 end
 
 include("chainedvector.jl")
+include("BufferedVectors.jl")

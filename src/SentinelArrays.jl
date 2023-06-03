@@ -3,6 +3,7 @@ module SentinelArrays
 using Dates, Random
 
 export SentinelArray, SentinelMatrix, SentinelVector, SentinelCollisionError, ChainedVector, MissingVector
+export BufferedVector, skip_element!, shiftleft!, unsafe_push!
 
 """
     SentinelArray(A::AbstractArray, sentinel, value)
@@ -447,6 +448,8 @@ end
 
 include("chainedvector.jl")
 include("missingvector.jl")
+include("BufferedVectors.jl")
+using .BufferedVectors
 
 include("precompile.jl")
 _precompile_()
