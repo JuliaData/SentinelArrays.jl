@@ -7,5 +7,6 @@ using SentinelArrays
 include("sentinelarrays.jl")
 include("missingvector.jl")
 include("chainedvector.jl")
+include("BufferedVectors.jl")
 
 end
