@@ -213,7 +213,10 @@ Base.hash(x::ChainedVectorIndex, h::UInt) = hash(x.i, h)
 
 @inline Base.getindex(x::ChainedVectorIndex) = @inbounds x.array[x.array_i]
 
-Base.checkbounds(::Type{Bool}, A::ChainedVector, ind::ChainedVectorIndex) = 1 <= ind.array_i <= length(ind.array)
+function Base.checkbounds(::Type{Bool}, A::ChainedVector, ind::ChainedVectorIndex)
+    @assert ind.array === A.arrays[ind.arrays_i] "indexing ChainedVector with wrong ChainedVectorIndex"
+    return 1 <= ind.array_i <= length(ind.array)
+end
 
 Base.@propagate_inbounds function Base.getindex(A::ChainedVector, x::ChainedVectorIndex)
     @boundscheck checkbounds(A, x)
