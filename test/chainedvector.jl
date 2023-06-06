@@ -529,6 +529,9 @@ end
     end
     ind = prevind(x, ind)
     @test_throws BoundsError x[ind]
+    # https://github.com/apache/arrow-julia/issues/418
+    y = ChainedVector([collect(1:i) for i = 10:100])
+    @test_throws AssertionError x[first(eachindex(y))]
     # https://github.com/JuliaData/SentinelArrays.jl/issues/74
     x = ChainedVector([[true], [false], [true]])
     @test BitVector(x) == [true, false, true]
