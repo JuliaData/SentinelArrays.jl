@@ -55,7 +55,7 @@ function shiftleft!(x::BufferedVector, n)
         empty!(x)
         return nothing
     end
-    unsafe_copyto!(x.elements, 1, x.elements, 1 + n, len - n + 1)
+    unsafe_copyto!(x.elements, 1, x.elements, 1 + n, len - n)
     x.occupied -= n
     return nothing
 end

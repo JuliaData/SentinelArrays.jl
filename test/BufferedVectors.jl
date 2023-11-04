@@ -59,6 +59,10 @@ using SentinelArrays: BufferedVectors
     unsafe_push!(bv, 42)
     @test bv == [1, 42]
 
+    # --check-bounds=auto not available prior to Julia 1.8, so we force the default
+    # bounds check behavior by removing the flag from the command line
+    julia_cmd_default_boundscheck = Base.julia_cmd()
+    filter!(x->!startswith(x, "--check-bounds="), julia_cmd_default_boundscheck.exec)
     code = """
     using SentinelArrays
     using Test
@@ -67,7 +71,7 @@ using SentinelArrays: BufferedVectors
     @noinline unsafe(bv, i) = @inbounds bv[i]
     @test unsafe(bv, 2) == bv.elements[2]
     """
-    cmd = `$(Base.julia_cmd()) --startup-file=no --project=. --check-bounds=auto -e $code`
+    cmd = `$(julia_cmd_default_boundscheck) --startup-file=no --project=. -e $code`
     @test success(pipeline(cmd; stdout=stdout, stderr=stderr))
 
     bv = BufferedVector{Int32}()
@@ -78,6 +82,7 @@ using SentinelArrays: BufferedVectors
     bv = BufferedVector{Int}([1,2,3], 3)
     shiftleft!(bv, 1)
     @test bv == [2,3]
+    @test bv.elements[3] == 3 # the last element is not overwritten
 
     bv = BufferedVector{Int}([1,2,3], 3)
     shiftleft!(bv, 2)
