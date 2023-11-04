@@ -204,8 +204,10 @@ end
 
 import Base: +, -, *, <, >, <=, >=, ==
 for f in (:+, :-, :*, :<, :>, :<=, :>=, :(==))
-    @eval $f(a::ChainedVectorIndex, b::Integer) = $f(a.i, b)
-    @eval $f(a::Integer, b::ChainedVectorIndex) = $f(a, b.i)
+    for inttype in (:Integer, :BigInt)
+        @eval $f(a::ChainedVectorIndex, b::$inttype) = $f(a.i, b)
+        @eval $f(a::$inttype, b::ChainedVectorIndex) = $f(a, b.i)
+    end
     @eval $f(a::ChainedVectorIndex, b::ChainedVectorIndex) = $f(a.i, b.i)
 end
 Base.convert(::Type{T}, x::ChainedVectorIndex) where {T <: Union{Signed, Unsigned}} = convert(T, x.i)
@@ -383,7 +385,9 @@ end
 
 Base.copyto!(dest::AbstractVector, src::ChainedVector) =
     copyto!(dest, 1, src, 1, length(src))
-Base.copyto!(dest::AbstractVector, doffs::Union{Signed, Unsigned}, src::ChainedVector) =
+Base.copyto!(dest::PermutedDimsArray{T, 1}, src::ChainedVector{T, A} where {A<:AbstractVector{T}}) where {T} =
+    copyto!(dest, 1, src, 1, length(src))
+Base.copyto!(dest::AbstractVector, doffs::Union{Signed,Unsigned}, src::ChainedVector) =
     copyto!(dest, doffs, src, 1, length(src))
 Base.copyto!(dest::AbstractVector, doffs::Union{Signed, Unsigned}, src::ChainedVector, soffs::Union{Signed, Unsigned}) =
     copyto!(dest, doffs, src, soffs, length(src) - soffs + 1)
@@ -778,7 +782,9 @@ Base.any(x::ChainedVector) = any(y -> any(y), x.arrays)
 Base.all(f::Function, x::ChainedVector) = all(y -> all(f, y), x.arrays)
 Base.all(x::ChainedVector) = all(y -> all(y), x.arrays)
 
-Base.reduce(op::OP, x::ChainedVector) where {OP} = reduce(op, (reduce(op, y) for y in x.arrays))
+for optype in (:Any, :hcat, :vcat)
+    @eval Base.reduce(op::typeof($optype), x::ChainedVector) = reduce(op, (reduce(op, y) for y in x.arrays))
+end
 Base.foldl(op::OP, x::ChainedVector) where {OP} = foldl(op, (foldl(op, y) for y in x.arrays))
 Base.foldr(op::OP, x::ChainedVector) where {OP} = foldr(op, (foldr(op, y) for y in x.arrays))
 Base.mapreduce(f::F, op::OP, x::ChainedVector) where {F, OP} = reduce(op, (mapreduce(f, op, y) for y in x.arrays))
@@ -903,6 +909,7 @@ function Base.findall(A::ChainedVector{Bool})
 end
 
 Base.findall(f::Function, x::ChainedVector) = findall(map(f, x))
+Base.findall(f::Base.Fix2{typeof(in)}, x::ChainedVector) = findall(map(f, x))
 
 function Base.filter(f, a::ChainedVector{T}) where {T}
     j = 1
@@ -930,3 +937,6 @@ Base.replace(a::ChainedVector, old_new::Pair...; count::Union{Integer,Nothing}=n
 Base.replace!(a::ChainedVector, old_new::Pair...; count::Integer=typemax(Int)) = (foreach(A -> replace!(A, old_new...; count=count), a.arrays); return a)
 
 Base.Broadcast.broadcasted(f::F, A::ChainedVector) where {F} = map(f, A)
+function Base.Broadcast.broadcasted(s::S, c::ChainedVector) where {S<:Base.Broadcast.BroadcastStyle}
+    error("Broadcasting with BroadcastStyle $s and ChainedVector $c is reserved.")
+end
