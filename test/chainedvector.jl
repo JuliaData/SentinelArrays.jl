@@ -550,8 +550,8 @@ end
             min_val = minimum(inv, x)
             val == min_val == inv(x[idx])
         end
-        @test x[argmax(inv, x)] == maximum(inv, x)
-        @test x[argmin(inv, x)] == minimum(inv, x)
+        @test inv(argmax(inv, x)) == maximum(inv, x)
+        @test inv(argmin(inv, x)) == minimum(inv, x)
     end
 end
 
