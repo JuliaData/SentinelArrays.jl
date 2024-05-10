@@ -526,7 +526,7 @@ end
         @test minimum(x) == minimum(y)
         @test argmax(x) == argmax(y)
         @test argmin(x) == argmin(y)
-        @static VERSION ≥ v"1.6"
+        @static if VERSION ≥ v"1.6"
             @test findmax(x->x+1, x) == findmax(x->x+1, y)
             @test findmin(x->x-1, x) == findmin(x->x-1, y)
             @test findfirst(isodd, x) == findfirst(isodd, y)
