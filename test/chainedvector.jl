@@ -468,7 +468,7 @@ end
     # Pairs of text vectors
     # Some were inspired by https://github.com/JuliaData/SentinelArrays.jl/issues/97
     test_vectors = [
-        ChainedVector([[100, 20], [10, 30, 70, 40], [50], [], [60, 90, 80]]) =>
+        ChainedVector([[100, 20], [10, 30, 70, 40], [50], Int[], [60, 90, 80]]) =>
             [100, 20, 10, 30, 70, 40, 50, 60, 90, 80],
         ChainedVector([[2,1,3], [4,5,6], [7,8,10,9]]) =>
             [2, 1, 3, 4, 5, 6, 7, 8, 10, 9],
@@ -516,6 +516,7 @@ end
             [3.9, -8.9, -0.3, 0.0, 7.3, -2.9, 8.6, 5.8, 0.5, 0.0, -4.5, 3.3, 0.4, -3.2],
     ]
     @testset for (x,y) in test_vectors
+        @test collect(x) == y
         @test length(x) == length(y)
         # should this be approx?
         @test sum(x) ≈ sum(y)
