@@ -837,8 +837,8 @@ Base.findmax(x::ChainedVector) = findmax(identity, x)
 Base.findmin(x::ChainedVector) = findmin(identity, x)
 Base.argmax(x::ChainedVector) = findmax(identity, x)[2]
 Base.argmin(x::ChainedVector) = findmin(identity, x)[2]
-Base.argmax(f::F, x::ChainedVector) where {F} = findmax(f, x)[2]
-Base.argmin(f::F, x::ChainedVector) where {F} = findmin(f, x)[2]
+Base.argmax(f::F, x::ChainedVector) where {F} = x[findmax(f, x)[2]]
+Base.argmin(f::F, x::ChainedVector) where {F} = x[findmin(f, x)[2]]
 
 function Base.findfirst(f::Function, x::ChainedVector)
     prevind = 0
