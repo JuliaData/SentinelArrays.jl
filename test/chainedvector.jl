@@ -292,8 +292,8 @@
     @test argmin(x) == 7
     @test findmax(inv, x) == (inv(14), 7)
     @test findmin(inv, x) == (inv(95), 7)
-    @test argmax(inv, x) == 7
-    @test argmin(inv, x) == 8
+    @test argmax(inv, x) == 14
+    @test argmin(inv, x) == 95
 
     x = ChainedVector(Vector{Float64}[])
     @test !any(x -> iseven(x), x)
