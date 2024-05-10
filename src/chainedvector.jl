@@ -809,7 +809,7 @@ function Base.findmax(f::F, x::ChainedVector) where {F}
     cleanup!(x) # get rid of any empty arrays
     i = 1
     y = f(x.arrays[1][1])
-    return findXwithfirst(!isless, f, x, y, i)
+    return findXwithfirst((x,y)->isless(y,x), f, x, y, i)
 end
 
 function Base.findmin(f::F, x::ChainedVector) where {F}
