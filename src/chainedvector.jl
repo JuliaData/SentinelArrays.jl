@@ -825,8 +825,9 @@ function findXwithfirst(comp, f, x, y, i)
     for A in x.arrays
         for y′ in A
             y′′ = f(y′)
-            i = ifelse(comp(y′′, y), i′, i)  # do this before y possibly changes!!!
-            y = ifelse(comp(y′′, y), y′′, y)
+            c = comp(y′′, y)  # store this before y changes
+            y = ifelse(c, y′′, y)
+            i = ifelse(c, i′, i)
             i′ += 1
         end
     end
