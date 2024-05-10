@@ -825,8 +825,9 @@ function findXwithfirst(comp, f, x, y, i)
     for A in x.arrays
         for y′ in A
             y′′ = f(y′)
-            y = ifelse(comp(y′′, y), y′′, y)
-            i = ifelse(comp(y′′, y), i′, i)
+            c = comp(y′′, y)  # store this before y changes
+            y = ifelse(c, y′′, y)
+            i = ifelse(c, i′, i)
             i′ += 1
         end
     end
@@ -835,8 +836,8 @@ end
 
 Base.findmax(x::ChainedVector) = findmax(identity, x)
 Base.findmin(x::ChainedVector) = findmin(identity, x)
-Base.argmax(x::ChainedVector) = findmax(identity, x)[1]
-Base.argmin(x::ChainedVector) = findmin(identity, x)[1]
+Base.argmax(x::ChainedVector) = findmax(identity, x)[2]
+Base.argmin(x::ChainedVector) = findmin(identity, x)[2]
 Base.argmax(f::F, x::ChainedVector) where {F} = x[findmax(f, x)[2]]
 Base.argmin(f::F, x::ChainedVector) where {F} = x[findmin(f, x)[2]]
 
