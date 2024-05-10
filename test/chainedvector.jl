@@ -284,6 +284,11 @@
     @test all(==(2), x)
     @test length(x) == 5
 
+    # https://github.com/JuliaData/SentinelArrays.jl/issues/97
+    x = ChainedVector([[18, 70, 92, 15, 65], [25, 14, 95, 54, 57]])
+    @test argmax(x) == 8
+    @test argmin(x) == 7
+
     x = ChainedVector(Vector{Float64}[])
     @test !any(x -> iseven(x), x)
     @test !any(map(x -> iseven(x), x))
