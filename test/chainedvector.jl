@@ -1,5 +1,6 @@
 @testset "ChainedVector" begin
 
+    # identity checks
     x = ChainedVector([[1,2,3], [4,5,6], [7,8,9,10]])
     @test x == 1:10
     @test length(x) == 10
@@ -54,6 +55,7 @@
     @test x[1] == 1
     insert!(x, 1, 2)
     @test x[1] == 2
+
 
     x = ChainedVector([[1,2,3], [4,5,6], [7,8,9,10]])
     y = ChainedVector([[11,12,13], [14,15,16], [17,18,19,20]])
@@ -534,9 +536,9 @@ end
         @test findmax(x->x+1, x) == findmax(x->x+1, y)
         @test findmin(x->x-1, x) == findmin(x->x-1, y)
         @test findfirst(isodd, x) == findfirst(isodd, y)
-        @test findfirst(iseven, x) == findfirst(isodd ,y)
+        @test findfirst(iseven, x) == findfirst(iseven ,y)
         @test findlast(isodd, x) == findfirst(isodd, y)
-        @test findlast(iseven, x) == findfirst(isodd ,y)
+        @test findlast(iseven, x) == findfirst(iseven ,y)
         @test findnext(isodd, x, 5) == findnext(isodd, y, 5)
     end
 end
