@@ -515,27 +515,43 @@ end
         ChainedVector([[3.9, -8.9], [-0.3, 0.0, 7.3], [-2.9, 8.6, 5.8, 0.5], [0.0, -4.5, 3.3, 0.4, -3.2]]) =>
             [3.9, -8.9, -0.3, 0.0, 7.3, -2.9, 8.6, 5.8, 0.5, 0.0, -4.5, 3.3, 0.4, -3.2],
     ]
-    for (x,y) in test_vectors
-        try
-            @test length(x) == length(y)
-            # should this be approx?
-            @test sum(x) ≈ sum(y)
-            @test findmax(x) == findmax(y)
-            @test findmin(x) == findmin(y)
-            @test maximum(x) == maximum(y)
-            @test minimum(x) == minimum(y)
-            @test argmax(x) == argmax(y)
-            @test argmin(x) == argmin(y)
-            @test findmax(x->x+1, x) == findmax(x->x+1, y)
-            @test findmin(x->x-1, x) == findmin(x->x-1, y)
-            @test findfirst(isodd, x) == findfirst(isodd, y)
-            @test findfirst(iseven, x) == findfirst(iseven ,y)
-            @test findlast(isodd, x) == findlast(isodd, y)
-            @test findlast(iseven, x) == findlast(iseven ,y)
-            @test findnext(isodd, x, 5) == findnext(isodd, y, 5)
-        catch err
-            error("Test failed for $x")
+    @testset for (x,y) in test_vectors
+        @test length(x) == length(y)
+        # should this be approx?
+        @test sum(x) ≈ sum(y)
+        @test findmax(x) == findmax(y)
+        @test findmin(x) == findmin(y)
+        @test maximum(x) == maximum(y)
+        @test minimum(x) == minimum(y)
+        @test argmax(x) == argmax(y)
+        @test argmin(x) == argmin(y)
+        @test findmax(x->x+1, x) == findmax(x->x+1, y)
+        @test findmin(x->x-1, x) == findmin(x->x-1, y)
+        @test findfirst(isodd, x) == findfirst(isodd, y)
+        @test findfirst(iseven, x) == findfirst(iseven ,y)
+        @test findlast(isodd, x) == findlast(isodd, y)
+        @test findlast(iseven, x) == findlast(iseven ,y)
+        @test findnext(isodd, x, 5) == findnext(isodd, y, 5)
+        @test let (val, idx) = findmax(x)
+            max_val = maximum(x)
+            val == max_val == x[idx]
         end
+        @test let (val, idx) = findmin(x)
+            min_val = minimum(x)
+            val == min_val == x[idx]
+        end
+        @test x[argmax(x)] == maximum(x)
+        @test x[argmin(x)] == minimum(x)
+        @test let (val, idx) = findmax(inv, x)
+            max_val = maximum(inv, x)
+            val == max_val == inv(x[idx])
+        end
+        @test let (val, idx) = findmin(inv, x)
+            min_val = minimum(inv, x)
+            val == min_val == inv(x[idx])
+        end
+        @test x[argmax(inv, x)] == maximum(inv, x)
+        @test x[argmin(inv, x)] == minimum(inv, x)
     end
 end
 
