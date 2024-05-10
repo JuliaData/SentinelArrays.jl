@@ -526,13 +526,15 @@ end
         @test minimum(x) == minimum(y)
         @test argmax(x) == argmax(y)
         @test argmin(x) == argmin(y)
-        @test findmax(x->x+1, x) == findmax(x->x+1, y)
-        @test findmin(x->x-1, x) == findmin(x->x-1, y)
-        @test findfirst(isodd, x) == findfirst(isodd, y)
-        @test findfirst(iseven, x) == findfirst(iseven ,y)
-        @test findlast(isodd, x) == findlast(isodd, y)
-        @test findlast(iseven, x) == findlast(iseven ,y)
-        @test findnext(isodd, x, 5) == findnext(isodd, y, 5)
+        @static VERSION ≥ v"1.6"
+            @test findmax(x->x+1, x) == findmax(x->x+1, y)
+            @test findmin(x->x-1, x) == findmin(x->x-1, y)
+            @test findfirst(isodd, x) == findfirst(isodd, y)
+            @test findfirst(iseven, x) == findfirst(iseven ,y)
+            @test findlast(isodd, x) == findlast(isodd, y)
+            @test findlast(iseven, x) == findlast(iseven ,y)
+            @test findnext(isodd, x, 5) == findnext(isodd, y, 5)
+        end
         @test let (val, idx) = findmax(x)
             max_val = maximum(x)
             val == max_val == x[idx]
