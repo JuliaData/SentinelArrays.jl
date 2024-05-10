@@ -467,7 +467,7 @@ end
 
     # Pairs of text vectors
     # Some were inspired by https://github.com/JuliaData/SentinelArrays.jl/issues/97
-    test_vectors = [
+    int_vectors = [
         ChainedVector([[100, 20], [10, 30, 70, 40], [50], Int[], [60, 90, 80]]) =>
             [100, 20, 10, 30, 70, 40, 50, 60, 90, 80],
         ChainedVector([[2,1,3], [4,5,6], [7,8,10,9]]) =>
@@ -494,6 +494,8 @@ end
             [7, 21, 31, 45, 53, 53],
         ChainedVector([[24, 28, 75, 42], [7, 38, 59, 10], [21, 30, 14], [8, 39], [13, 68, 42]]) =>
             [24, 28, 75, 42, 7, 38, 59, 10, 21, 30, 14, 8, 39, 13, 68, 42],
+    ]
+    floating_point_vectors = [
         ChainedVector([[2.1, -4.6, -2.5], [-5.0, 6.4, 2.0, -0.5], [-6.1, -7.6, -3.2, -4.7, 4.3], [-1.7, 6.4, -8.9, -7.4], [-7.7, -1.4, 3.1, 4.5]]) =>
             [2.1, -4.6, -2.5, -5.0, 6.4, 2.0, -0.5, -6.1, -7.6, -3.2, -4.7, 4.3, -1.7, 6.4, -8.9, -7.4, -7.7, -1.4, 3.1, 4.5],
         ChainedVector([[-8.5, -1.2, -3.8, 7.5], [8.2, 7.5, -5.3], [-2.7, 0.6, -6.2, 6.1, 1.4]]) =>
@@ -515,7 +517,31 @@ end
         ChainedVector([[3.9, -8.9], [-0.3, 0.0, 7.3], [-2.9, 8.6, 5.8, 0.5], [0.0, -4.5, 3.3, 0.4, -3.2]]) =>
             [3.9, -8.9, -0.3, 0.0, 7.3, -2.9, 8.6, 5.8, 0.5, 0.0, -4.5, 3.3, 0.4, -3.2],
     ]
-    @testset for (x,y) in test_vectors
+    rational_vectors = [
+        ChainedVector(Vector{Rational{Int64}}[[1, 1//2, 1//2, 4//5], [7//10], [1, 1//5, 7//10, 3//10, 1], [3//5], [1]]) =>
+            Rational{Int64}[1, 1//2, 1//2, 4//5, 7//10, 1, 1//5, 7//10, 3//10, 1, 3//5, 1],
+        ChainedVector(Vector{Rational{Int64}}[[1//5], [1, 4//5, 1//5], [3//5, 7//10, 3//5], [9//10, 1//5, 7//10, 1//2], [1//2, 7//10, 9//10, 3//5, 7//10]]) =>
+            Rational{Int64}[1//5, 1, 4//5, 1//5, 3//5, 7//10, 3//5, 9//10, 1//5, 7//10, 1//2, 1//2, 7//10, 9//10, 3//5, 7//10],
+        ChainedVector(Vector{Rational{Int64}}[[7//10, 1, 1//5, 1//2, 2//5], [1//5, 4//5, 1//2, 1//5], [3//10, 3//10, 1//2], [3//10, 1//10, 4//5, 3//5], [2//5, 7//10, 1, 3//10, 3//10]]) =>
+            Rational{Int64}[7//10, 1, 1//5, 1//2, 2//5, 1//5, 4//5, 1//2, 1//5, 3//10, 3//10, 1//2, 3//10, 1//10, 4//5, 3//5, 2//5, 7//10, 1, 3//10, 3//10],
+        ChainedVector(Vector{Rational{Int64}}[[1//10, 4//5], [1//2], [1//10], [4//5, 1, 3//5, 9//10, 9//10]]) =>
+            Rational{Int64}[1//10, 4//5, 1//2, 1//10, 4//5, 1, 3//5, 9//10, 9//10],
+        ChainedVector(Vector{Rational{Int64}}[[3//10, 1, 9//10, 3//5], [1, 1], [1, 4//5, 3//5, 9//10]]) =>
+            Rational{Int64}[3//10, 1, 9//10, 3//5, 1, 1, 1, 4//5, 3//5, 9//10],
+        ChainedVector(Vector{Rational{Int64}}[[3//10, 7//10], [4//5], [4//5, 1, 1//10, 9//10], [1, 1, 4//5]]) =>
+            Rational{Int64}[3//10, 7//10, 4//5, 4//5, 1, 1//10, 9//10, 1, 1, 4//5],
+        ChainedVector(Vector{Rational{Int64}}[[2//5], [3//5, 9//10, 7//10, 9//10], [1//2, 1, 1//10, 1//5], [1//5, 4//5, 7//10, 2//5]]) =>
+            Rational{Int64}[2//5, 3//5, 9//10, 7//10, 9//10, 1//2, 1, 1//10, 1//5, 1//5, 4//5, 7//10, 2//5],
+        ChainedVector(Vector{Rational{Int64}}[[7//10], [3//5, 1//5, 2//5, 3//5, 4//5], [4//5], [7//10, 3//5, 7//10, 7//10, 1//10]]) =>
+            Rational{Int64}[7//10, 3//5, 1//5, 2//5, 3//5, 4//5, 4//5, 7//10, 3//5, 7//10, 7//10, 1//10],
+        ChainedVector(Vector{Rational{Int64}}[[1//2, 1, 1//2, 9//10, 2//5], [9//10, 1//2, 3//5], [4//5, 7//10], [3//10, 2//5], [9//10, 1]]) =>
+            Rational{Int64}[1//2, 1, 1//2, 9//10, 2//5, 9//10, 1//2, 3//5, 4//5, 7//10, 3//10, 2//5, 9//10, 1],
+        ChainedVector(Vector{Rational{Int64}}[[9//10, 3//10, 1//10, 2//5], [4//5], [9//10, 2//5]]) =>
+            Rational{Int64}[9//10, 3//10, 1//10, 2//5, 4//5, 9//10, 2//5],
+
+    ]
+    @testset for (x,y) in Iterators.flatten([int_vectors, floating_point_vectors, rational_vectors])
+        @test copy(x) == y
         @test collect(x) == y
         @test length(x) == length(y)
         # should this be approx?
@@ -526,6 +552,12 @@ end
         @test minimum(x) == minimum(y)
         @test argmax(x) == argmax(y)
         @test argmin(x) == argmin(y)
+        @test all(>(0),x) == all(>(0),y)
+        @test any(>(0),x) == any(>(0),y)
+        @test any(<(0),x) == any(<(0),y)
+        @test count(>(0),x) == count(>(0),y)
+        @test count(<(0),x) == count(<(0),y)
+        @test extrema(inv, x) == extrema(inv, y)
         @static if VERSION ≥ v"1.6"
             @test findmax(x->x+1, x) == findmax(x->x+1, y)
             @test findmin(x->x-1, x) == findmin(x->x-1, y)
@@ -533,7 +565,9 @@ end
             @test findfirst(iseven, x) == findfirst(iseven ,y)
             @test findlast(isodd, x) == findlast(isodd, y)
             @test findlast(iseven, x) == findlast(iseven ,y)
+            @test findall(iseven, x) == findall(iseven ,y)
             @test findnext(isodd, x, 5) == findnext(isodd, y, 5)
+            @test findprev(isodd, x, 5) == findprev(isodd, y, 5)
         end
         @test let (val, idx) = findmax(x)
             max_val = maximum(x)
