@@ -51,6 +51,11 @@ using SentinelArrays: BufferedVectors
     skip_element!(bv)
     @test length(bv) == 2
 
+    empty!(bv)
+    push!(bv, 2.0) # convert
+    @test bv == [2]
+    @assert length(bv) == 1
+
     bv = BufferedVector{Int}()
     push!(bv, 1)
     @test length(bv.elements) == BufferedVectors._grow_by(Int)
