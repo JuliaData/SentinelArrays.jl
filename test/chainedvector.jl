@@ -465,7 +465,7 @@ end
     end
     =#
 
-    # Pairs of text vectors
+    # Pairs of test vectors
     # Some were inspired by https://github.com/JuliaData/SentinelArrays.jl/issues/97
     int_vectors = [
         ChainedVector([[100, 20], [10, 30, 70, 40], [50], Int[], [60, 90, 80]]) =>
