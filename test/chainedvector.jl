@@ -544,8 +544,7 @@ end
         @test copy(x) == y
         @test collect(x) == y
         @test length(x) == length(y)
-        # should this be approx?
-        @test sum(x) ≈ sum(y)
+        @test sum(x) == sum(y)
         @test findmax(x) == findmax(y)
         @test findmin(x) == findmin(y)
         @test maximum(x) == maximum(y)
