@@ -544,7 +544,9 @@ end
         @test copy(x) == y
         @test collect(x) == y
         @test length(x) == length(y)
-        @test sum(x) == sum(y)
+        # Floating point tests fail if this is not approx
+        # See https://github.com/JuliaData/SentinelArrays.jl/pull/99#issuecomment-2171005657
+        @test sum(x) ≈ sum(y)
         @test findmax(x) == findmax(y)
         @test findmin(x) == findmin(y)
         @test maximum(x) == maximum(y)
