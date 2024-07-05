@@ -809,7 +809,10 @@ function Base.findmax(f::F, x::ChainedVector) where {F}
     cleanup!(x) # get rid of any empty arrays
     i = 1
     y = f(x.arrays[1][1])
-    return findXwithfirst(!isless, f, x, y, i)
+    # x > y iff y < x for a well ordered set
+    # nb. isgreater = !isless is not correct. That is `>=`
+    isgreater(x, y) = isless(y, x)
+    return findXwithfirst(isgreater, f, x, y, i)
 end
 
 function Base.findmin(f::F, x::ChainedVector) where {F}
