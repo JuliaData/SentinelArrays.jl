@@ -43,12 +43,16 @@ end
 
 @inline function cleanup!(arrays, inds)
     @assert length(arrays) == length(inds)
-    for i = length(arrays):-1:1
-        if !isassigned(arrays, i) || length(arrays[i]) == 0
-            deleteat!(arrays, i)
-            deleteat!(inds, i)
-        end
+    mask_it = Base.Iterators.filter(i->isassigned(arrays, i) && length(arrays[i])>0, 1:length(arrays))
+    n = 0
+    for k in mask_it
+        n += 1
+        k > n || continue
+        arrays[n] = arrays[k]
+        inds[n] = inds[k]
     end
+    resize!(arrays, n)
+    resize!(inds, n)
     return
 end
 
