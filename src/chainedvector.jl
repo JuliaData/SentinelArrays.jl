@@ -187,10 +187,11 @@ end
 Base.@propagate_inbounds function Base.getindex(x::ChainedVector{T, A}, inds::UnitRange{Int}) where {T, A}
     isempty(inds) && return similar(x, 0)
     len = length(inds)
-    res = similar(x.arrays[1], len)
-    chunk = j = ind = 1
-    chunklen = length(x.arrays[1])
     arrays = x.arrays
+    res = similar(arrays[1], len)
+    chunk = j = ind = 1
+    chunklen = length(arrays[1])
+
     # linearindex first item
     chunk, chunklen, j = linearindex(x, chunk, chunklen, j, ind, inds[1])
     @inbounds arraychunk = arrays[chunk]
