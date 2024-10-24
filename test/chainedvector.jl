@@ -734,3 +734,14 @@ end
         @test deleteat!(v2, m2) == deleteat!(s2, m2)
     end
 end
+
+@testset "getindex with UnitRange" begin
+    x = ChainedVector([collect(1:i) for i = 10:100])
+    @test isempty(x[1:0])
+    @test x[1:1] == [1]
+    @test x[1:end] == x
+    y = collect(x)
+    for i = 1:length(x), j = 1:length(x)
+        @test x[i:j] == y[i:j]
+    end
+end
