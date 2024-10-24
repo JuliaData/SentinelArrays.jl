@@ -177,10 +177,35 @@ Base.@propagate_inbounds function Base.getindex(x::ChainedVector{T, A}, inds::Ab
     arrays = x.arrays
     for i = 1:len
         @inbounds ind2 = inds[i]
-        # @boundscheck checkbounds(x, ind2)
         chunk, chunklen, j = linearindex(x, chunk, chunklen, j, ind, ind2)
         @inbounds res[i] = arrays[chunk][j]
         ind = ind2
+    end
+    return res
+end
+
+Base.@propagate_inbounds function Base.getindex(x::ChainedVector{T, A}, inds::UnitRange{Int}) where {T, A}
+    isempty(inds) && return similar(x, 0)
+    len = length(inds)
+    res = similar(x.arrays[1], len)
+    chunk = j = ind = 1
+    chunklen = length(x.arrays[1])
+    arrays = x.arrays
+    # linearindex first item
+    chunk, chunklen, j = linearindex(x, chunk, chunklen, j, ind, inds[1])
+    @inbounds arraychunk = arrays[chunk]
+    i = 1
+    # now we can copy entire chunks and avoid further linear indexing
+    while true
+        N = min(len, chunklen - j + 1)
+        unsafe_copyto!(res, i, arraychunk, j, N)
+        len -= N
+        len == 0 && break
+        i += N
+        chunk += 1
+        chunklen = length(arrays[chunk])
+        j = 1
+        arraychunk = arrays[chunk]
     end
     return res
 end
