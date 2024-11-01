@@ -677,6 +677,8 @@ end
     @test length(x) == 0
     @test_throws BoundsError x[1]
     @test_throws BoundsError x[end]
+    @test isempty(@inferred(x[Int[]]))
+    @test isempty(@inferred(x[2:1]))
 
     push!(x, 1)
     @test x[end] == 1
@@ -743,5 +745,20 @@ end
     y = collect(x)
     for i = 1:length(x), j = 1:length(x)
         @test x[i:j] == y[i:j]
+    end
+
+    # #107
+    for f in (identity, collect)
+        x = ChainedVector([f(1:2), f(3:4)])
+        @test @inferred(x[2:3]) == 2:3
+        @test @inferred(x[3:2]) == Int[]
+    end
+end
+
+@testset "getindex type-inference" begin
+    for f in (identity, collect)
+        x = ChainedVector([f(1:2), f(3:4)])
+        @test @inferred(x[[2,3]]) == 2:3
+        @test @inferred(x[Int[]]) == Int[]
     end
 end
