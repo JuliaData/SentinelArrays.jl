@@ -153,9 +153,16 @@ function over(len, N=Threads.nthreads())
 end
 
 Base.@propagate_inbounds function Base.getindex(x::ChainedVector{T, A}, inds::AbstractVector{Int}) where {T, A}
-    isempty(inds) && return similar(x, 0)
     len = length(inds)
-    res = similar(x.arrays[1], len)
+    arrays = x.arrays
+    if len == 0
+        if isempty(arrays)
+            return similar(eltype(arrays), 0)
+        else
+            return similar(arrays[1], 0)
+        end
+    end
+    res = similar(arrays[1], len) # out of bounds if `arrays` is empty
     # N = Threads.nthreads()
     # ranges = (((j - 1) * div(len, N) + 1, j == N ? len : j * div(len, N) + 1) for j = 1:N)
     # @sync for (start, stop) in ranges
@@ -173,10 +180,8 @@ Base.@propagate_inbounds function Base.getindex(x::ChainedVector{T, A}, inds::Ab
     #     end
     # end
     chunk = j = ind = 1
-    chunklen = length(x.arrays[1])
-    arrays = x.arrays
-    for i = 1:len
-        @inbounds ind2 = inds[i]
+    chunklen = length(arrays[1])
+    for (i, ind2) in zip(eachindex(res), inds)
         chunk, chunklen, j = linearindex(x, chunk, chunklen, j, ind, ind2)
         @inbounds res[i] = arrays[chunk][j]
         ind = ind2
@@ -185,29 +190,45 @@ Base.@propagate_inbounds function Base.getindex(x::ChainedVector{T, A}, inds::Ab
 end
 
 Base.@propagate_inbounds function Base.getindex(x::ChainedVector{T, A}, inds::UnitRange{Int}) where {T, A}
-    isempty(inds) && return similar(x, 0)
-    len = length(inds)
     arrays = x.arrays
-    res = similar(arrays[1], len)
-    chunk = j = ind = 1
-    chunklen = length(arrays[1])
+    len = length(inds)
+    if len == 0
+        if isempty(arrays)
+            return similar(eltype(arrays), 0)
+        else
+            return similar(arrays[1], 0)
+        end
+    end
 
     # linearindex first item
+    chunk = ind = j = 1
+    chunklen = length(arrays[chunk]) # out of bounds if `arrays` is empty
     chunk, chunklen, j = linearindex(x, chunk, chunklen, j, ind, inds[1])
+
+    # first chunk to be copied
     @inbounds arraychunk = arrays[chunk]
-    i = 1
+    chunklen = chunklen - j + 1 # remaining elements in the chunk, starting from index j
+
     # now we can copy entire chunks and avoid further linear indexing
-    while true
-        N = min(len, chunklen - j + 1)
-        unsafe_copyto!(res, i, arraychunk, j, N)
-        len -= N
-        len == 0 && break
-        i += N
+    res = similar(arraychunk, len)
+    i = 1
+
+    # copy all but the last chunk (always all elements copied)
+    while chunklen < len
+        copyto!(res, i, arraychunk, j, chunklen)
+        len -= chunklen
+        i += chunklen
+
+        # prepare next chunk
         chunk += 1
-        chunklen = length(arrays[chunk])
-        j = 1
         arraychunk = arrays[chunk]
+        chunklen = length(arraychunk)
+        j = 1
     end
+
+    # copy last chunk (possibly incompletely)
+    copyto!(res, i, arraychunk, j, len)
+
     return res
 end
 
