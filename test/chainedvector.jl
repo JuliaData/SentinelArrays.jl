@@ -710,6 +710,20 @@ end
     @test BitVector(x) == [true, false, true]
 end
 
+# https://github.com/JuliaData/SentinelArrays.jl/issues/110
+@testset "Resizing ChainedVector" begin
+    c = ChainedVector([[:a],[:b1,:b2,:b3],[:c]])
+    @test length(resize!(c,6)) == 6
+    @test resize!(c,5) == [:a,:b1,:b2,:b3,:c]
+    @test resize!(c,4) == [:a,:b1,:b2,:b3]
+    @test resize!(c,3) == [:a,:b1,:b2]
+    @test resize!(c,2) == [:a,:b1]
+    @test resize!(c,1) == [:a]
+    @test resize!(c,0) == []
+
+    @test sum(unique!(ChainedVector([[1],[2],[3]]))) == 6
+end
+
 @testset "MissingVector resizing" begin
     v = MissingVector(1)
     @test isequal(push!(v, missing), [missing, missing])

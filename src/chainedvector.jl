@@ -546,8 +546,8 @@ function Base.resize!(A::ChainedVector{T, AT}, len) where {T, AT}
         resize!(A.arrays, chunk)
         resize!(A.inds, chunk)
         # resize individual chunk
-        resize!(A.arrays[chunk], A.inds[chunk] - len)
-        A.inds[chunk] -= A.inds[chunk] - len
+        resize!(A.arrays[chunk], length(A.arrays[chunk]) - (A.inds[chunk] - len))
+        A.inds[chunk] = len
     end
     return A
 end
