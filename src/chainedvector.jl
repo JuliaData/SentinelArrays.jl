@@ -981,7 +981,45 @@ end
 
 Base.replace(f::Base.Callable, a::ChainedVector) = ChainedVector([replace(f, A) for A in a.arrays])
 Base.replace!(f::Base.Callable, a::ChainedVector) = (foreach(A -> replace!(f, A), a.arrays); return a)
-Base.replace(a::ChainedVector, old_new::Pair...; count::Union{Integer,Nothing}=nothing) = ChainedVector([replace(A, old_new...; count=count) for A in a.arrays])
-Base.replace!(a::ChainedVector, old_new::Pair...; count::Integer=typemax(Int)) = (foreach(A -> replace!(A, old_new...; count=count), a.arrays); return a)
+
+function _check_count(count::Integer)
+    count < 0 && throw(DomainError(count, "`count` must not be negative"))
+    return min(count, typemax(Int)) % Int
+end
+
+function Base.replace(A::ChainedVector, old_new::Pair...; count::Integer=typemax(Int))
+    count = _check_count(count)
+    R = similar(A)
+    isempty(A) && return R
+    reps = 0
+    for (ai,ri) in zip(eachindex(A),eachindex(R))
+        R[ri] = A[ai]
+        for (old, new) in old_new
+            if R[ri] == old && reps < count
+                R[ri] = new
+                reps += 1
+                continue
+            end
+        end
+    end
+    return R
+end
+
+function Base.replace!(A::ChainedVector, old_new::Pair...; count::Integer=typemax(Int))
+    count = _check_count(count)
+    isempty(A) && return A
+    reps = 0
+    for i in eachindex(A)
+        for (old, new) in old_new
+            reps == count && return A
+            if A[i] == old
+                A[i] = new
+                reps += 1
+                continue
+            end
+        end
+    end
+    return A
+end
 
 Base.Broadcast.broadcasted(f::F, A::ChainedVector) where {F} = map(f, A)
