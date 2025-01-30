@@ -350,6 +350,13 @@
     @test map(x -> x == 1 ? 2.0 : x, x) == replace!(x, 1 => 2)
     @test isempty(x)
 
+    @test replace!(ChainedVector([[1,2], [1,2]]), 2=>20) == [1,20,1,20]
+    @test replace!(ChainedVector([[1,2], [1,2]]), 2=>20, count=1) == [1,20,1,2]
+    @test replace!(ChainedVector([[1,2], [1,2]]), 2=>20, count=2) == [1,20,1,20]
+    x = [1,2]
+    @test replace!(ChainedVector([x,[2,3]]), 2=>99) == [1,99,99,3]
+    @test x == [1,99]
+
     # copyto!
     # ChainedVector dest: doffs, soffs, n
     x = ChainedVector([[1,2,3], [4,5,6], [7,8,9,10]])
