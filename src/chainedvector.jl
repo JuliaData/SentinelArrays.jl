@@ -572,12 +572,19 @@ end
 Base.@propagate_inbounds function Base.deleteat!(A::ChainedVector, i::Integer)
     @boundscheck checkbounds(A, i)
     chunk, ix = index(A, i)
-    deleteat!(A.arrays[chunk], ix)
-    for j = chunk:length(A.inds)
+    lastchunk = length(A.inds)
+    if length(A.arrays[chunk]) == 1
+        deleteat!(A.arrays, chunk)
+        deleteat!(A.inds, chunk)
+        lastchunk -= 1
+        resize!(A.arrays, lastchunk)
+        resize!(A.inds, lastchunk)
+    else
+        deleteat!(A.arrays[chunk], ix)
+    end
+    for j = chunk:lastchunk
         @inbounds A.inds[j] -= 1
     end
-    # check if we should remove an empty chunk
-    cleanup!(A)
     return A
 end
 
