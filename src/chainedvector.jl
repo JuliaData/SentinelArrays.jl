@@ -147,11 +147,6 @@ end
     return chunk, chunklen, chunklen - (ind - i2)
 end
 
-function over(len, N=Threads.nthreads())
-    nlen, r = divrem(len, N)
-    return (((i - 1) * nlen + 1, i * nlen + ifelse(i == N, r, 0)) for i = 1:N)
-end
-
 Base.@propagate_inbounds function Base.getindex(x::ChainedVector{T, A}, inds::AbstractVector{Int}) where {T, A}
     len = length(inds)
     arrays = x.arrays
