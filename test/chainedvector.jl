@@ -225,6 +225,9 @@
     y = ChainedVector([[1,2,3], [4,5,6,7], [8,9,10]])
     map!(x -> x + 1, x, y)
     @test all(x -> x[1] + 1 == x[2], zip(y, x))
+    x = ChainedVector([[1,2,3], [4,5,6]])
+    y = [1,2]
+    @test map!(x -> x + 10, x, y)== [11,12,3,4,5,6]
 
     # reductions
     x = ChainedVector([[1,2,3], [4,5,6], [7,8,9,10]])

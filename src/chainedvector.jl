@@ -756,26 +756,16 @@ Base.map(f::F, x::ChainedVector) where {F} = ChainedVector([map(f, y) for y in x
 
 function Base.map!(f::F, A::AbstractVector, x::ChainedVector) where {F}
     length(A) >= length(x) || throw(ArgumentError("destination must be at least as long as map! source"))
-    idx = eachindex(A)
-    st = iterate(idx)
-    for array in x.arrays
-        for y in array
-            @inbounds A[st[1]] = f(y)
-            st = iterate(idx, st[2])
-        end
+    for (i, j) in zip(eachindex(A), eachindex(x))
+        @inbounds A[i] = f(x[j])
     end
     return A
 end
 
 function Base.map!(f::F, x::ChainedVector, A::AbstractVector) where {F}
     length(x) >= length(A) || throw(ArgumentError("destination must be at least as long as map! source"))
-    idx = eachindex(A)
-    st = iterate(idx)
-    for array in x.arrays
-        for j in eachindex(array)
-            @inbounds array[j] = f(A[st[1]])
-            st = iterate(idx, st[2])
-        end
+    for (i, j) in zip(eachindex(x), eachindex(A))
+        @inbounds x[i] = f(A[j])
     end
     return x
 end
