@@ -675,6 +675,8 @@ Base.@propagate_inbounds function Base.insert!(A::ChainedVector{T, AT}, i::Integ
     return A
 end
 
+Base.vcat(A::ChainedVector{T, AT}) where {T, AT <: AbstractVector{T}} = A
+
 function Base.vcat(A::ChainedVector{T, AT}, arrays::ChainedVector{T, AT}...) where {T, AT <: AbstractVector{T}}
     newarrays = vcat(A.arrays, map(x->x.arrays, arrays)...)
     n = length(A.inds)
