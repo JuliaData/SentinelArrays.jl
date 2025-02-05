@@ -974,9 +974,46 @@ function Base.filter!(f, a::ChainedVector)
     return a
 end
 
-Base.replace(f::Base.Callable, a::ChainedVector) = ChainedVector([replace(f, A) for A in a.arrays])
-Base.replace!(f::Base.Callable, a::ChainedVector) = (foreach(A -> replace!(f, A), a.arrays); return a)
-Base.replace(a::ChainedVector, old_new::Pair...; count::Union{Integer,Nothing}=nothing) = ChainedVector([replace(A, old_new...; count=count) for A in a.arrays])
-Base.replace!(a::ChainedVector, old_new::Pair...; count::Integer=typemax(Int)) = (foreach(A -> replace!(A, old_new...; count=count), a.arrays); return a)
+function _check_count(count::Integer)
+    count < 0 && throw(DomainError(count, "`count` must not be negative"))
+    return min(count, typemax(Int)) % Int
+end
+
+Base.replace(f::Base.Callable, a::ChainedVector; count::Integer=typemax(Int)) =
+    _replace!(f, copy(a), a, _check_count(count))
+
+Base.replace!(f::Base.Callable, a::ChainedVector; count::Integer=typemax(Int)) =
+    _replace!(f, a, a, _check_count(count))
+
+Base.replace(A::ChainedVector, old_new::Pair...; count::Integer=typemax(Int)) =
+    _replace_pairs!(copy(A), A, _check_count(count), old_new)
+
+Base.replace!(A::ChainedVector, old_new::Pair...; count::Integer=typemax(Int)) =
+    _replace_pairs!(A, A, _check_count(count), old_new)
+
+function _replace_pairs!(res, A::ChainedVector{T}, count::Int, old_new::Tuple{Vararg{Pair}}) where {T}
+    @inline function new(x)
+        for (old, new) in old_new
+            isequal(x, old) && return new
+        end
+        return x # no replace
+    end
+    _replace!(new, res, A, count)
+end
+
+function _replace!(new::Base.Callable, res, A::ChainedVector{T}, count::Int) where {T}
+    count == 0 && return res
+    c = 0
+    for i in eachindex(A)
+        x = A[i]
+        y = new(x)
+        if x !== y
+            res[i] = y
+            c += 1
+            c == count && break
+        end
+    end
+    return res
+end
 
 Base.Broadcast.broadcasted(f::F, A::ChainedVector) where {F} = map(f, A)

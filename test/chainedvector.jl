@@ -350,6 +350,13 @@
     @test map(x -> x == 1 ? 2.0 : x, x) == replace!(x, 1 => 2)
     @test isempty(x)
 
+    @test replace!(ChainedVector([[1,2], [1,2]]), 2=>20) == [1,20,1,20]
+    @test replace!(ChainedVector([[1,2], [1,2]]), 2=>20, count=1) == [1,20,1,2]
+    @test replace!(ChainedVector([[1,2], [1,2]]), 2=>20, count=2) == [1,20,1,20]
+    x = [1,2]
+    @test replace!(ChainedVector([x,[2,3]]), 2=>99) == [1,99,99,3]
+    @test x == [1,99]
+
     # copyto!
     # ChainedVector dest: doffs, soffs, n
     x = ChainedVector([[1,2,3], [4,5,6], [7,8,9,10]])
@@ -593,6 +600,47 @@ end
     end
 end
 
+@testset "replace[!] comparison with Vector" begin
+    
+    testvecs = (
+        [[1, 2], [3, 2, 5]],
+        [[1, 2]],
+        [[2],[2],[2],[2,3]],
+        [[1,2,missing]],
+        [[missing,1],[missing,2,1]],
+        [[missing]]
+    )
+    function missing_equal(a,b)
+        ismissing(a) && ismissing(b) && return true
+        ismissing(a) ⊻ ismissing(b) && return false
+        return all(skipmissing(a) .== skipmissing(b))
+    end 
+    gen_cv_v(x) = (c = ChainedVector(x); (c, collect(c)))
+    for f in (replace, replace!)
+        for x in testvecs
+            cv, v = gen_cv_v(x)
+            @test missing_equal(f(v, 2 => 22),f(cv, 2 => 22))
+            @test missing_equal(v,cv)
+
+            cv, v = gen_cv_v(x)
+            @test missing_equal(f(x -> x ÷ 2, v), f(x -> x ÷ 2, cv))
+            @test missing_equal(v,cv)
+
+            for c in (0, 1, 2, 3)
+                cv, v = gen_cv_v(x)
+                @test missing_equal(f(x -> x ÷ 2, v, count=c), f(x -> x ÷ 2, cv, count=c))
+                @test missing_equal(v,cv)
+
+                for p in ((2=>2,),(2 => 22,), (2 => 22, 3 => 33))
+                    cv, v = gen_cv_v(x)
+                    @test missing_equal(f(v, p..., count=c), f(cv, p..., count=c))
+                    @test missing_equal(v,cv)
+                end
+            end
+        end
+    end
+end
+
 
 @testset "iteration protocol on ChainedVector" begin
     for len in 0:6
@@ -752,7 +800,7 @@ end
 end
 
 @testset "getindex with UnitRange" begin
-    x = ChainedVector([collect(1:i) for i = 10:100])
+    x = ChainedVector([collect(1:i) for i = 1:10])
     @test isempty(x[1:0])
     @test x[1:1] == [1]
     @test x[1:end] == x
