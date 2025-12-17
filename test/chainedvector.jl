@@ -230,8 +230,10 @@
     x = ChainedVector([[1,2,3], [4,5,6], [7,8,9,10]])
     @test any(x -> iseven(x), x)
     @test any(map(x -> iseven(x), x))
+    @test any(iseven.(x))
     @test !all(x -> iseven(x), x)
     @test !all(map(x -> iseven(x), x))
+    @test !all(iseven.(x))
     @test reduce(+, x) == 55
     @test foldl(+, x) == 55
     @test foldr(+, x) == 55
