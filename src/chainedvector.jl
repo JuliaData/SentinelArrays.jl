@@ -248,13 +248,12 @@ struct ChainedVectorIndex{A} <: Integer
     i::Int
 end
 
-import Base: +, -, *, <, >, <=, >=, ==
-for f in (:+, :-, :*, :<, :>, :<=, :>=, :(==))
-    @eval $f(a::ChainedVectorIndex, b::Integer) = $f(a.i, b)
-    @eval $f(a::Integer, b::ChainedVectorIndex) = $f(a, b.i)
-    @eval $f(a::ChainedVectorIndex, b::ChainedVectorIndex) = $f(a.i, b.i)
+for f in (:+, :-, :*, :<, :<=, :(==))
+    @eval Base.$f(a::ChainedVectorIndex, b::Integer) = $f(a.i, b)
+    @eval Base.$f(a::Integer, b::ChainedVectorIndex) = $f(a, b.i)
+    @eval Base.$f(a::ChainedVectorIndex, b::ChainedVectorIndex) = $f(a.i, b.i)
 end
-Base.convert(::Type{T}, x::ChainedVectorIndex) where {T <: Union{Signed, Unsigned}} = convert(T, x.i)
+(::Type{T})(x::ChainedVectorIndex) where {T <: Union{Signed, Unsigned}} = T(x.i)
 Base.hash(x::ChainedVectorIndex, h::UInt) = hash(x.i, h)
 
 @inline Base.getindex(x::ChainedVectorIndex) = @inbounds x.array[x.array_i]
@@ -371,10 +370,6 @@ end
     ci, st = state
     return ci[], (idx, st)
 end
-
-# other AbstractArray functions
-Base.similar(x::ChainedVector) = similar(x, length(x))
-Base.similar(x::ChainedVector{T}, len::Base.DimOrInd) where {T} = similar(x, T, len)
 
 function Base.similar(x::ChainedVector{T}, ::Type{S}, _len::Base.DimOrInd=length(x)) where {T, S}
     len = _len isa Integer ? _len : length(_len)
@@ -819,11 +814,6 @@ function Base.map!(f::F, x::ChainedVector, y::ChainedVector{T}) where {F, T}
     return x
 end
 
-Base.any(f::Function, x::ChainedVector) = any(y -> any(f, y), x.arrays)
-Base.any(x::ChainedVector) = any(y -> any(y), x.arrays)
-Base.all(f::Function, x::ChainedVector) = all(y -> all(f, y), x.arrays)
-Base.all(x::ChainedVector) = all(y -> all(y), x.arrays)
-
 Base.reduce(op::OP, x::ChainedVector) where {OP} = reduce(op, (reduce(op, y) for y in x.arrays))
 Base.foldl(op::OP, x::ChainedVector) where {OP} = foldl(op, (foldl(op, y) for y in x.arrays))
 Base.foldr(op::OP, x::ChainedVector) where {OP} = foldr(op, (foldr(op, y) for y in x.arrays))
@@ -978,5 +968,3 @@ Base.replace(f::Base.Callable, a::ChainedVector) = ChainedVector([replace(f, A) 
 Base.replace!(f::Base.Callable, a::ChainedVector) = (foreach(A -> replace!(f, A), a.arrays); return a)
 Base.replace(a::ChainedVector, old_new::Pair...; count::Union{Integer,Nothing}=nothing) = ChainedVector([replace(A, old_new...; count=count) for A in a.arrays])
 Base.replace!(a::ChainedVector, old_new::Pair...; count::Integer=typemax(Int)) = (foreach(A -> replace!(A, old_new...; count=count), a.arrays); return a)
-
-Base.Broadcast.broadcasted(f::F, A::ChainedVector) where {F} = map(f, A)
