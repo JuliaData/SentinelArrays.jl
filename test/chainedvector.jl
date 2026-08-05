@@ -1,3 +1,19 @@
+function test_unaliased_vcat(x, replacement)
+    before = collect(Iterators.map(identity, x))
+    y = @inferred vcat(x)
+    @test isequal(y, x)
+    @test typeof(y) === typeof(x)
+    @test y !== x
+    @test y.arrays !== x.arrays
+    @test y.inds !== x.inds
+    if !isempty(y)
+        y[1] = replacement
+        @test isequal(collect(Iterators.map(identity, x)), before)
+    end
+    empty!(y)
+    @test isequal(collect(Iterators.map(identity, x)), before)
+end
+
 @testset "ChainedVector" begin
 
     # identity checks
@@ -59,6 +75,15 @@
 
     x = ChainedVector([[1,2,3], [4,5,6], [7,8,9,10]])
     y = ChainedVector([[11,12,13], [14,15,16], [17,18,19,20]])
+
+    @testset "single-input vcat" begin
+        test_unaliased_vcat(ChainedVector(Vector{Int}[]), 1)
+        test_unaliased_vcat(ChainedVector([[1]]), 2)
+        test_unaliased_vcat(ChainedVector(AbstractVector[[1], Float32[2]]), 3.0f0)
+        test_unaliased_vcat(ChainedVector([Union{Missing, Int}[1, missing]]), 2)
+        test_unaliased_vcat(ChainedVector([SentinelArray(Union{Missing, Int}[1, missing])]), 2)
+        test_unaliased_vcat(ChainedVector([ChainedVector([[1]]), ChainedVector([[2]])]), 3)
+    end
 
     z = vcat(x, y)
     @test length(z) == 20
