@@ -477,7 +477,7 @@ function Base.copy(A::ChainedVector{T}) where {T}
 end
 
 function Base.unaliascopy(x::ChainedVector{T, A}) where {T, A}
-    arrays = map(copy, x.arrays)
+    arrays = map(Base.unaliascopy, x.arrays)
     return ChainedVector{T, A}(arrays, copy(x.inds))
 end
 
@@ -629,9 +629,8 @@ Base.@propagate_inbounds function Base.insert!(A::ChainedVector{T, AT}, i::Integ
     return A
 end
 
-Base.vcat(A::ChainedVector{T, AT}) where {T, AT <: AbstractVector{T}} = A
-
 function Base.vcat(A::ChainedVector{T, AT}, arrays::ChainedVector{T, AT}...) where {T, AT <: AbstractVector{T}}
+    isempty(arrays) && return Base.unaliascopy(A)
     newarrays = vcat(A.arrays, map(x->x.arrays, arrays)...)
     n = length(A.inds)
     inds = Vector{Int}(undef, n + sum(x->length(x.inds), arrays))
