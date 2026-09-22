@@ -796,6 +796,7 @@ function Base.map!(f::F, x::ChainedVector, y::ChainedVector{T}) where {F, T}
     end
     # slower path
     cleanup!(y)
+    N = length(y.arrays)
     yidx = yi = 1
     @inbounds ychunk = y.arrays[yidx]
     ychunklen = length(ychunk)
