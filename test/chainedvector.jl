@@ -803,3 +803,43 @@ end
         @test @inferred(x[Int[]]) == Int[]
     end
 end
+
+@testset "map! from empty ChainedVector" begin
+    for chunks in (Vector{Int}[], [Int[]], [[1,2,3]], [[1],[2,3]])
+        destination=ChainedVector(deepcopy(chunks))
+        before=collect(destination)
+        for source_chunks in (Vector{Int}[], [Int[]], [Int[],Int[]])
+            source=ChainedVector(deepcopy(source_chunks))
+            calls=Ref(0)
+            f=x->(calls[]+=1; x+1)
+            @test map!(f,destination,source) === destination
+            @test collect(destination)==before
+            @test calls[]==0
+            @test isempty(source)
+        end
+    end
+end
+
+function source_with_empty_chunks(position)
+    src=ChainedVector([[1,2]])
+    if position in (:front,:both)
+        prepend!(src,Int[])
+    end
+    if position in (:back,:both)
+        append!(src,Int[])
+    end
+    return src
+end
+@testset "map! after adding empty chunks" begin
+    for position in (:front,:back,:both), destchunks in ([[0,0]],[[0,0,0]],[[0],[0],[0]])
+        source=source_with_empty_chunks(position)
+        dest=ChainedVector(deepcopy(destchunks))
+        expected=collect(dest)
+        map!(x->x+1,expected,collect(source))
+        calls=Ref(0)
+        @test map!(x->(calls[]+=1; x+1),dest,source) === dest
+        @test collect(dest)==expected
+        @test calls[]==2
+        @test collect(source)==[1,2]
+    end
+end

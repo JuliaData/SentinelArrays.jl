@@ -778,6 +778,7 @@ end
 
 function Base.map!(f::F, x::ChainedVector, y::ChainedVector{T}) where {F, T}
     length(x) >= length(y) || throw(ArgumentError("destination must be at least as long as map! source"))
+    isempty(y) && return x
     # check for potential fastpath
     N = length(y.arrays)
     if length(x.arrays) == N
@@ -795,6 +796,7 @@ function Base.map!(f::F, x::ChainedVector, y::ChainedVector{T}) where {F, T}
     end
     # slower path
     cleanup!(y)
+    N = length(y.arrays)
     yidx = yi = 1
     @inbounds ychunk = y.arrays[yidx]
     ychunklen = length(ychunk)
