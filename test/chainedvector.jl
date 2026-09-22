@@ -1,3 +1,16 @@
+struct GatherStorage{T} <: AbstractVector{T}
+    data::Vector{T}
+    similar_calls::Base.RefValue{Int}
+end
+Base.size(x::GatherStorage) = size(x.data)
+Base.IndexStyle(::Type{<:GatherStorage}) = IndexLinear()
+Base.getindex(x::GatherStorage, i::Int) = x.data[i]
+Base.setindex!(x::GatherStorage, v, i::Int) = (x.data[i] = v)
+function Base.similar(x::ChainedVector{T, GatherStorage{T}}, ::Type{S}, dims::Dims{1}) where {T, S}
+    x.arrays[1].similar_calls[] += 1
+    return GatherStorage(Vector{S}(undef, dims), Ref(0))
+end
+
 function test_unaliased_vcat(x, replacement)
     before = collect(Iterators.map(identity, x))
     y = @inferred vcat(x)
@@ -75,6 +88,59 @@ end
 
     x = ChainedVector([[1,2,3], [4,5,6], [7,8,9,10]])
     y = ChainedVector([[11,12,13], [14,15,16], [17,18,19,20]])
+
+    @testset "materialize gathered views" begin
+        for chunks in ([[1, 2], Int[], [3, 4]],
+                       [Union{Int, Missing}[1, 2], Union{Int, Missing}[3, 4]],
+                       [SentinelArray([1, 2], typemin(Int), missing),
+                        SentinelArray([3, 4], typemin(Int), missing)])
+            source = ChainedVector(chunks)
+            for inds in (Int[], [1, 3, 4], [4, 1, 4, 2], [4, 3, 2, 1],
+                         1:4, 1:2:4, view([4, 1, 4], :))
+                v = view(source, inds)
+                result = AbstractVector{Float64}(v)
+                @test result == Float64[inds...]
+                @test result isa Vector{Float64}
+                @test convert(AbstractArray{eltype(source)}, v) === v
+                @test AbstractVector{eltype(source)}(v) !== v
+                if !isempty(result)
+                    result[1] = 99
+                    @test source[inds[1]] == inds[1]
+                end
+            end
+        end
+        @test isempty(AbstractVector{Float64}(view(ChainedVector(Vector{Int}[]), Int[])))
+
+        calls = Ref(0)
+        custom = ChainedVector([GatherStorage([1, 2], calls), GatherStorage([3, 4], calls)])
+        custom_result = AbstractVector{Float64}(view(custom, [1, 4, 4]))
+        @test custom_result isa GatherStorage{Float64}
+        @test custom_result == [1, 4, 4]
+        @test calls[] == 1
+
+        source = ChainedVector([[2, 1], [4, 3]])
+        inds = source.arrays[1]
+        v = view(source, inds)
+        result = AbstractVector{Float64}(v)
+        @test result == [1, 2]
+        @test inds == [2, 1]
+        source[1] = 4
+        @test v[1] == 3
+        @test result == [1, 2]
+
+        source = ChainedVector([[1, 2], [3, 4]])
+        inds = [1, 4]
+        v = view(source, inds)
+        inds[1] = 0
+        @test_throws BoundsError AbstractVector{Float64}(v)
+        inds .= [1, 5]
+        @test_throws BoundsError AbstractVector{Float64}(v)
+
+        withmissing = ChainedVector([Union{Missing, Int}[1, missing]])
+        @test_throws MethodError AbstractVector{Int}(view(withmissing, [2]))
+        fractional = ChainedVector([[1.5]])
+        @test_throws InexactError AbstractVector{Int}(view(fractional, [1]))
+    end
 
     @testset "single-input vcat" begin
         test_unaliased_vcat(ChainedVector(Vector{Int}[]), 1)
