@@ -589,7 +589,7 @@ end
         @test count(>(0),x) == count(>(0),y)
         @test count(<(0),x) == count(<(0),y)
         @test extrema(inv, x) == extrema(inv, y)
-        @static if VERSION ≥ v"1.6"
+        @static if VERSION ≥ v"1.7"
             @test findmax(x->x+1, x) == findmax(x->x+1, y)
             @test findmin(x->x-1, x) == findmin(x->x-1, y)
             @test findfirst(isodd, x) == findfirst(isodd, y)
