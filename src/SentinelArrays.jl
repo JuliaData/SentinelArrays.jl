@@ -19,13 +19,8 @@ This allows, for example, simulating a `Vector{Union{Float64, Missing}}` by doin
 
 For isbits types, a random/reasonable sentinel will be attempted if none provided. For non-isbits, `#undef` is used as sentinel. The default value, if not provided, is `missing`.
 
-When an element and the sentinel have the same concrete `Real` type, they are
-compared with `===`; other comparisons use `isequal`. For same-type `Float16`,
-`Float32`, or `Float64` comparisons, a NaN sentinel matches only the same NaN
-representation, not every value for which `isnan` is true. Other NaN
-representations remain ordinary stored values. If all
-NaNs in an existing array should become `missing`, normalize them to the chosen
-sentinel before wrapping the array.
+Elements of the same `Real` type as the sentinel match it by `===`; others use `isequal`.
+So a `NaN` sentinel matches only its exact bit pattern, and other `NaN`s are ordinary values.
 
 A `SentinelArray` allows setting an element to `value`, which will result in the `sentinel` being stored in the wrapped array.
 
