@@ -386,6 +386,10 @@ end
     x = [1,2]
     @test replace!(ChainedVector([x,[2,3]]), 2=>99) == [1,99,99,3]
     @test x == [1,99]
+    # results stay ChainedVectors and promote like Base
+    @test replace(ChainedVector([[1,2], [1,2]]), 2=>2.5) isa ChainedVector{Float64}
+    @test replace(ChainedVector([[1,2], [1,2]]), 2=>2.5, count=1) == [1,2.5,1,2]
+    @test replace(ChainedVector([[1,missing], [missing]]), missing=>0) isa ChainedVector{Int}
 
     # copyto!
     # ChainedVector dest: doffs, soffs, n
@@ -664,6 +668,7 @@ end
                 for p in ((2=>2,),(2 => 22,), (2 => 22, 3 => 33))
                     cv, v = gen_cv_v(x)
                     @test missing_equal(f(v, p..., count=c), f(cv, p..., count=c))
+                    @test eltype(f(v, p..., count=c)) == eltype(f(cv, p..., count=c))
                     @test missing_equal(v,cv)
                 end
             end
