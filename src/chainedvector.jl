@@ -248,13 +248,12 @@ struct ChainedVectorIndex{A} <: Integer
     i::Int
 end
 
-import Base: +, -, *, <, >, <=, >=, ==
-for f in (:+, :-, :*, :<, :>, :<=, :>=, :(==))
-    @eval $f(a::ChainedVectorIndex, b::Integer) = $f(a.i, b)
-    @eval $f(a::Integer, b::ChainedVectorIndex) = $f(a, b.i)
-    @eval $f(a::ChainedVectorIndex, b::ChainedVectorIndex) = $f(a.i, b.i)
+for f in (:+, :-, :*, :<, :<=, :(==))
+    @eval Base.$f(a::ChainedVectorIndex, b::Integer) = $f(a.i, b)
+    @eval Base.$f(a::Integer, b::ChainedVectorIndex) = $f(a, b.i)
+    @eval Base.$f(a::ChainedVectorIndex, b::ChainedVectorIndex) = $f(a.i, b.i)
 end
-Base.convert(::Type{T}, x::ChainedVectorIndex) where {T <: Union{Signed, Unsigned}} = convert(T, x.i)
+(::Type{T})(x::ChainedVectorIndex) where {T <: Union{Signed, Unsigned}} = T(x.i)
 Base.hash(x::ChainedVectorIndex, h::UInt) = hash(x.i, h)
 
 @inline Base.getindex(x::ChainedVectorIndex) = @inbounds x.array[x.array_i]
@@ -371,10 +370,6 @@ end
     ci, st = state
     return ci[], (idx, st)
 end
-
-# other AbstractArray functions
-Base.similar(x::ChainedVector) = similar(x, length(x))
-Base.similar(x::ChainedVector{T}, len::Base.DimOrInd) where {T} = similar(x, T, len)
 
 function Base.similar(x::ChainedVector{T}, ::Type{S}, _len::Base.DimOrInd=length(x)) where {T, S}
     len = _len isa Integer ? _len : length(_len)
@@ -523,7 +518,7 @@ function Base.copy(A::ChainedVector{T}) where {T}
 end
 
 function Base.unaliascopy(x::ChainedVector{T, A}) where {T, A}
-    arrays = map(copy, x.arrays)
+    arrays = map(Base.unaliascopy, x.arrays)
     return ChainedVector{T, A}(arrays, copy(x.inds))
 end
 
@@ -676,6 +671,7 @@ Base.@propagate_inbounds function Base.insert!(A::ChainedVector{T, AT}, i::Integ
 end
 
 function Base.vcat(A::ChainedVector{T, AT}, arrays::ChainedVector{T, AT}...) where {T, AT <: AbstractVector{T}}
+    isempty(arrays) && return Base.unaliascopy(A)
     newarrays = vcat(A.arrays, map(x->x.arrays, arrays)...)
     n = length(A.inds)
     inds = Vector{Int}(undef, n + sum(x->length(x.inds), arrays))
@@ -756,26 +752,16 @@ Base.map(f::F, x::ChainedVector) where {F} = ChainedVector([map(f, y) for y in x
 
 function Base.map!(f::F, A::AbstractVector, x::ChainedVector) where {F}
     length(A) >= length(x) || throw(ArgumentError("destination must be at least as long as map! source"))
-    idx = eachindex(A)
-    st = iterate(idx)
-    for array in x.arrays
-        for y in array
-            @inbounds A[st[1]] = f(y)
-            st = iterate(idx, st[2])
-        end
+    for (i, j) in zip(eachindex(A), eachindex(x))
+        @inbounds A[i] = f(x[j])
     end
     return A
 end
 
 function Base.map!(f::F, x::ChainedVector, A::AbstractVector) where {F}
     length(x) >= length(A) || throw(ArgumentError("destination must be at least as long as map! source"))
-    idx = eachindex(A)
-    st = iterate(idx)
-    for array in x.arrays
-        for j in eachindex(array)
-            @inbounds array[j] = f(A[st[1]])
-            st = iterate(idx, st[2])
-        end
+    for (i, j) in zip(eachindex(x), eachindex(A))
+        @inbounds x[i] = f(A[j])
     end
     return x
 end
@@ -818,11 +804,6 @@ function Base.map!(f::F, x::ChainedVector, y::ChainedVector{T}) where {F, T}
 @label done
     return x
 end
-
-Base.any(f::Function, x::ChainedVector) = any(y -> any(f, y), x.arrays)
-Base.any(x::ChainedVector) = any(y -> any(y), x.arrays)
-Base.all(f::Function, x::ChainedVector) = all(y -> all(f, y), x.arrays)
-Base.all(x::ChainedVector) = all(y -> all(y), x.arrays)
 
 Base.reduce(op::OP, x::ChainedVector) where {OP} = reduce(op, (reduce(op, y) for y in x.arrays))
 Base.foldl(op::OP, x::ChainedVector) where {OP} = foldl(op, (foldl(op, y) for y in x.arrays))
@@ -974,46 +955,17 @@ function Base.filter!(f, a::ChainedVector)
     return a
 end
 
-function _check_count(count::Integer)
-    count < 0 && throw(DomainError(count, "`count` must not be negative"))
-    return min(count, typemax(Int)) % Int
-end
-
+# Without a `count` limit, chunks are replaced independently. A limit spans chunks,
+# so limited replacements use Base's elementwise methods.
 Base.replace(f::Base.Callable, a::ChainedVector; count::Integer=typemax(Int)) =
-    _replace!(f, copy(a), a, _check_count(count))
-
+    count < length(a) ? invoke(replace, Tuple{Base.Callable, Any}, f, a; count=count) :
+    ChainedVector([replace(f, A) for A in a.arrays])
 Base.replace!(f::Base.Callable, a::ChainedVector; count::Integer=typemax(Int)) =
-    _replace!(f, a, a, _check_count(count))
-
-Base.replace(A::ChainedVector, old_new::Pair...; count::Integer=typemax(Int)) =
-    _replace_pairs!(copy(A), A, _check_count(count), old_new)
-
-Base.replace!(A::ChainedVector, old_new::Pair...; count::Integer=typemax(Int)) =
-    _replace_pairs!(A, A, _check_count(count), old_new)
-
-function _replace_pairs!(res, A::ChainedVector{T}, count::Int, old_new::Tuple{Vararg{Pair}}) where {T}
-    @inline function new(x)
-        for (old, new) in old_new
-            isequal(x, old) && return new
-        end
-        return x # no replace
-    end
-    _replace!(new, res, A, count)
-end
-
-function _replace!(new::Base.Callable, res, A::ChainedVector{T}, count::Int) where {T}
-    count == 0 && return res
-    c = 0
-    for i in eachindex(A)
-        x = A[i]
-        y = new(x)
-        if x !== y
-            res[i] = y
-            c += 1
-            c == count && break
-        end
-    end
-    return res
-end
-
-Base.Broadcast.broadcasted(f::F, A::ChainedVector) where {F} = map(f, A)
+    count < length(a) ? invoke(replace!, Tuple{Base.Callable, Any}, f, a; count=count) :
+    (foreach(A -> replace!(f, A), a.arrays); a)
+Base.replace(a::ChainedVector, old_new::Pair...; count::Union{Integer,Nothing}=nothing) =
+    count === nothing ? ChainedVector([replace(A, old_new...) for A in a.arrays]) :
+    invoke(replace, Tuple{Any, Vararg{Pair}}, a, old_new...; count=count)
+Base.replace!(a::ChainedVector, old_new::Pair...; count::Integer=typemax(Int)) =
+    count < length(a) ? invoke(replace!, Tuple{Any, Vararg{Pair}}, a, old_new...; count=count) :
+    (foreach(A -> replace!(A, old_new...), a.arrays); a)

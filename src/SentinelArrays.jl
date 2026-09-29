@@ -58,6 +58,9 @@ mutable struct SentinelArray{T, N, S, V, A <: AbstractArray{T, N}} <: AbstractAr
 end
 
 Base.parent(A::SentinelArray) = A.data
+function Base.unaliascopy(A::SentinelArray)
+    return SentinelArray(Base.unaliascopy(parent(A)), A.sentinel, A.value)
+end
 # users of pointer should be careful because it's the raw storage data, which doesn't respect the sentinel semantics
 Base.pointer(A::SentinelArray) = pointer(parent(A))
 
