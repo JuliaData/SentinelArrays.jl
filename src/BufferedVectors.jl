@@ -21,7 +21,6 @@ end
     @boundscheck((x.occupied >= i && i > 0) || Base.throw_boundserror(x, i))
     return @inbounds(x.elements[i])
 end
-Base.ndims(x::BufferedVector) = 1
 Base.empty!(x::BufferedVector) = (x.occupied = 0; x)
 Base.isempty(x::BufferedVector) = x.occupied == 0
 Base.IndexStyle(::BufferedVector) = Base.IndexLinear()
