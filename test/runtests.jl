@@ -377,3 +377,19 @@ end
 
 include("chainedvector.jl")
 include("BufferedVectors.jl")
+
+# https://github.com/JuliaData/SentinelArrays.jl/issues/85
+@testset "method ambiguities" begin
+    # before 1.10, Julia loads SparseArrays by default, whose methods overlap ours for sparse inputs
+    VERSION >= v"1.10" && @test isempty(Test.detect_ambiguities(SentinelArrays))
+    x = ChainedVector([[[1, 2]], [[3, 4]]])
+    @test reduce(vcat, x) == [1, 2, 3, 4]
+    @test reduce(hcat, x) == [1 3; 2 4]
+    y = ChainedVector([[1, 2], [3, 4]])
+    @test findall(in([2, 3]), y) == [2, 3]
+    @test findall(in(Set([4])), y) == [4]
+    @test copyto!(PermutedDimsArray(zeros(Int, 4), (1,)), y) == 1:4
+    i = collect(eachindex(y))[3]
+    @test i < big(4) && big(2) < i && i == big(3) && big(3) <= i
+    @test BigInt(i) == 3
+end
