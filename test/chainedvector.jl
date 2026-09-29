@@ -781,8 +781,29 @@ end
     ind = prevind(x, ind)
     @test_throws BoundsError x[ind]
     # https://github.com/apache/arrow-julia/issues/418
+    # indices from one ChainedVector index others by position, even under @inbounds
     y = ChainedVector([collect(1:i) for i = 10:100])
-    @test_throws AssertionError x[first(eachindex(y))]
+    z = ChainedVector([x[1:7], x[8:end]]) # same values, different chunks
+    for (i, ind) in enumerate(eachindex(y))
+        @test x[ind] == @inbounds(x[ind]) == z[ind] == x[i] == z[i]
+        @inbounds y[ind] = -i
+    end
+    @test y == -(1:length(y))
+    w = similar(y)
+    for ind in eachindex(y)
+        @inbounds w[ind] = y[ind]
+    end
+    @test w == y
+    longer = ChainedVector([x.arrays; [[1]]])
+    @test_throws BoundsError x[collect(eachindex(longer))[end]]
+    p = ChainedVector([[1, 2], [3, 4]])
+    i = first(eachindex(ChainedVector([[10], [20, 30, 40]])))
+    @test p[nextind(p, i)] == 2
+    @test p[prevind(p, nextind(p, nextind(p, i)))] == 2
+    # generic Base code indexes `similar(A)` with `eachindex(A)`
+    a = ChainedVector([[1, 2], [1, 2]])
+    @test replace(x -> 10x, a; count=3) == [10, 20, 10, 2]
+    @test a == [1, 2, 1, 2]
     # https://github.com/JuliaData/SentinelArrays.jl/issues/74
     x = ChainedVector([[true], [false], [true]])
     @test BitVector(x) == [true, false, true]
