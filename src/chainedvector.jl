@@ -525,6 +525,7 @@ end
 function Base.resize!(A::ChainedVector{T, AT}, len) where {T, AT}
     len >= 0 || throw(ArgumentError("`len` must be >= 0 when resizing ChainedVector"))
     len′ = length(A)
+    len′ == len && return A
     if len′ < len
         # growing
         push!(A.arrays, similar(AT, len - len′))
