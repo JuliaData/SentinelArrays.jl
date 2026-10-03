@@ -249,11 +249,15 @@ struct ChainedVectorIndex{A} <: Integer
 end
 
 for f in (:+, :-, :*, :<, :<=, :(==))
-    @eval Base.$f(a::ChainedVectorIndex, b::Integer) = $f(a.i, b)
-    @eval Base.$f(a::Integer, b::ChainedVectorIndex) = $f(a, b.i)
+    # BigInt methods avoid ambiguities with Base's BigInt/Integer methods
+    for I in (:Integer, :BigInt)
+        @eval Base.$f(a::ChainedVectorIndex, b::$I) = $f(a.i, b)
+        @eval Base.$f(a::$I, b::ChainedVectorIndex) = $f(a, b.i)
+    end
     @eval Base.$f(a::ChainedVectorIndex, b::ChainedVectorIndex) = $f(a.i, b.i)
 end
 (::Type{T})(x::ChainedVectorIndex) where {T <: Union{Signed, Unsigned}} = T(x.i)
+Base.BigInt(x::ChainedVectorIndex) = BigInt(x.i)
 Base.hash(x::ChainedVectorIndex, h::UInt) = hash(x.i, h)
 
 @inline Base.getindex(x::ChainedVectorIndex) = @inbounds x.array[x.array_i]
@@ -423,6 +427,8 @@ function Base.copyto!(dest::ChainedVector{T}, doffs::Union{Signed, Unsigned},
 end
 
 Base.copyto!(dest::AbstractVector, src::ChainedVector) =
+    copyto!(dest, 1, src, 1, length(src))
+Base.copyto!(dest::PermutedDimsArray{<:Any, 1}, src::ChainedVector) =
     copyto!(dest, 1, src, 1, length(src))
 Base.copyto!(dest::AbstractVector, doffs::Union{Signed, Unsigned}, src::ChainedVector) =
     copyto!(dest, doffs, src, 1, length(src))
@@ -810,6 +816,11 @@ function Base.map!(f::F, x::ChainedVector, y::ChainedVector{T}) where {F, T}
 end
 
 Base.reduce(op::OP, x::ChainedVector) where {OP} = reduce(op, (reduce(op, y) for y in x.arrays))
+# Base's specialized methods; the generic one above would be ambiguous with them
+Base.reduce(::typeof(vcat), x::ChainedVector{<:AbstractVecOrMat}) =
+    invoke(reduce, Tuple{typeof(vcat), AbstractVector{<:AbstractVecOrMat}}, vcat, x)
+Base.reduce(::typeof(hcat), x::ChainedVector{<:AbstractVecOrMat}) =
+    invoke(reduce, Tuple{typeof(hcat), AbstractVector{<:AbstractVecOrMat}}, hcat, x)
 Base.foldl(op::OP, x::ChainedVector) where {OP} = foldl(op, (foldl(op, y) for y in x.arrays))
 Base.foldr(op::OP, x::ChainedVector) where {OP} = foldr(op, (foldr(op, y) for y in x.arrays))
 Base.mapreduce(f::F, op::OP, x::ChainedVector) where {F, OP} = reduce(op, (mapreduce(f, op, y) for y in x.arrays))
@@ -938,6 +949,8 @@ function Base.findall(A::ChainedVector{Bool})
 end
 
 Base.findall(f::Function, x::ChainedVector) = findall(map(f, x))
+Base.findall(f::Base.Fix2{typeof(in)}, x::ChainedVector) =
+    invoke(findall, Tuple{Base.Fix2{typeof(in)}, AbstractArray}, f, x)
 
 function Base.filter(f, a::ChainedVector{T}) where {T}
     j = 1
