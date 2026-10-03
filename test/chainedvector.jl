@@ -754,6 +754,27 @@ end
     @test sum(unique!(ChainedVector([[1],[2],[3]]))) == 6
 end
 
+@testset "no-op resizing ChainedVector" begin
+    emptied = empty!(ChainedVector([[1, 2], [3]]))
+    popped = ChainedVector([[1]])
+    pop!(popped)
+    shrunk = resize!(ChainedVector([[1, 2], [3]]), 0)
+    for c in (ChainedVector(Vector{Int}[]), ChainedVector([Int[]]), emptied, popped, shrunk)
+        @test resize!(c, 0) === c
+        @test isempty(c)
+        @test push!(c, 4) === c
+        @test collect(c) == [4]
+        @test pop!(c) == 4
+        @test append!(c, [5, 6]) === c
+        @test collect(c) == [5, 6]
+    end
+    c = ChainedVector([[1], [2, 3]])
+    @test resize!(c, length(c)) === c
+    @test collect(c) == [1, 2, 3]
+    @test_throws ArgumentError resize!(c, -1)
+    @test collect(c) == [1, 2, 3]
+end
+
 @testset "MissingVector resizing" begin
     v = MissingVector(1)
     @test isequal(push!(v, missing), [missing, missing])
