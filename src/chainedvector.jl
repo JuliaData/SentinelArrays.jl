@@ -388,6 +388,36 @@ function Base.similar(x::ChainedVector{T}, ::Type{S}, _len::Base.DimOrInd=length
     return ChainedVector([similar(A, S, nlen + (i == N ? r : 0)) for (i, A) in enumerate(x.arrays)])
 end
 
+function Base.AbstractArray{T, 1}(v::SubArray{S, 1, <:ChainedVector, Tuple{I}}) where {T, S, I <: AbstractVector{Int}}
+    x = parent(v)
+    inds = parentindices(v)[1]
+    if length(x.arrays) <= 1 || !issorted(inds)
+        return invoke(AbstractArray{T, 1}, Tuple{AbstractArray{S, 1}}, v)
+    end
+    dest = similar(v, T)
+    if !(dest isa Vector && axes(dest) == axes(v))
+        @static if isdefined(Base, :copyto_axcheck!)
+            return Base.copyto_axcheck!(dest, v)
+        else
+            return copyto!(dest, v)
+        end
+    end
+    checkbounds(x, inds)
+    chunk = 0
+    low, high = 1, 0
+    for i in eachindex(dest)
+        ind = @inbounds inds[i]
+        # Sorted gathers can reuse the current chunk until its end.
+        if !(low <= ind <= high)
+            chunk, _ = index(x, ind)
+            low = chunk == 1 ? 1 : x.inds[chunk - 1] + 1
+            high = x.inds[chunk]
+        end
+        @inbounds dest[i] = x.arrays[chunk][ind - low + 1]
+    end
+    return dest
+end
+
 Base.copyto!(dest::ChainedVector, src::AbstractVector) =
     copyto!(dest, 1, src, 1, length(src))
 Base.copyto!(dest::ChainedVector, doffs::Union{Signed, Unsigned}, src::AbstractVector) =
