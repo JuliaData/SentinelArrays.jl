@@ -970,7 +970,17 @@ function Base.filter!(f, a::ChainedVector)
     return a
 end
 
-Base.replace(f::Base.Callable, a::ChainedVector) = ChainedVector([replace(f, A) for A in a.arrays])
-Base.replace!(f::Base.Callable, a::ChainedVector) = (foreach(A -> replace!(f, A), a.arrays); return a)
-Base.replace(a::ChainedVector, old_new::Pair...; count::Union{Integer,Nothing}=nothing) = ChainedVector([replace(A, old_new...; count=count) for A in a.arrays])
-Base.replace!(a::ChainedVector, old_new::Pair...; count::Integer=typemax(Int)) = (foreach(A -> replace!(A, old_new...; count=count), a.arrays); return a)
+# Without a `count` limit, chunks are replaced independently. A limit spans chunks,
+# so limited replacements use Base's elementwise methods.
+Base.replace(f::Base.Callable, a::ChainedVector; count::Integer=typemax(Int)) =
+    count < length(a) ? invoke(replace, Tuple{Base.Callable, Any}, f, a; count=count) :
+    ChainedVector([replace(f, A) for A in a.arrays])
+Base.replace!(f::Base.Callable, a::ChainedVector; count::Integer=typemax(Int)) =
+    count < length(a) ? invoke(replace!, Tuple{Base.Callable, Any}, f, a; count=count) :
+    (foreach(A -> replace!(f, A), a.arrays); a)
+Base.replace(a::ChainedVector, old_new::Pair...; count::Union{Integer,Nothing}=nothing) =
+    count === nothing ? ChainedVector([replace(A, old_new...) for A in a.arrays]) :
+    invoke(replace, Tuple{Any, Vararg{Pair}}, a, old_new...; count=count)
+Base.replace!(a::ChainedVector, old_new::Pair...; count::Integer=typemax(Int)) =
+    count < length(a) ? invoke(replace!, Tuple{Any, Vararg{Pair}}, a, old_new...; count=count) :
+    (foreach(A -> replace!(A, old_new...), a.arrays); a)
