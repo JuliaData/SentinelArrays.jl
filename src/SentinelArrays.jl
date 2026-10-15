@@ -17,7 +17,7 @@ A `SentinelArray{T}` wraps an `AbstractArray` of type `T`, and accepts a `sentin
 This allows, for example, simulating a `Vector{Union{Float64, Missing}}` by doing something like `SentinelVector{Float64}(undef, len, NaN, missing)`. The resulting `SentinelArray` will have
 `eltype` equal to `Union{T, typeof(value)}`.
 
-For isbits types, a random/reasonable sentinel will be attempted if none provided. For non-isbits, `#undef` is used as sentinel. The default value, if not provided, is `missing`.
+If no `sentinel` is given, isbits element types use the value with all bits set (`-1` for signed integers, `typemax` for unsigned integers, a NaN for floats) and other element types use `#undef`. The default `value` is `missing`.
 
 Elements of the same `Real` type as the sentinel match it by `===`; others use `isequal`.
 So a `NaN` sentinel matches only its exact bit pattern, and other `NaN`s are ordinary values.
@@ -28,14 +28,14 @@ For isbits element types, if a `setindex!` operation is attempted with the `Sent
 If another sentinel can't be found (i.e. the values already exist in the wrapped array), an error will be thrown.
 
 **CAVEATS**:
-  * For float and date/time types, reasonable sentinels exist that don't have meaningful *real* values, so it's recommended to use the default sentinels
-  * For `Integer` types, all bit patterns are valid, so a random value is chosen; if usage will involve extremely high cardinality relative to the type range, consider using `Vector{Union{T, Missing}}` instead
+  * Wrapped elements equal to the sentinel read as `value`, so `SentinelArray([-1, 2])` is `[missing, 2]`. The default float sentinel is a NaN payload that real data rarely contains; for other types, pass a `sentinel` that can't occur in your data
+  * For `Integer` types, every bit pattern is a valid value, so replacement sentinels are chosen at random; if usage will involve extremely high cardinality relative to the type range, consider using `Vector{Union{T, Missing}}` instead
   * `SentinelArray`s are not allowed to have plain `Bool` elements since there isn't a possible sentinel
   * A `SentinelArray` *IS NOT* thread-safe when usage relies on `setindex!` and potential sentinel collision (due to the check to automatically cycle the sentinel to another value); this will normally only affect small `Integer` element types where the potential for sentinel collision is highest
   * Access to a `SentinelArray`'s raw data is possible via `parent(A)` or `pointer(A)`, but note that the raw data will *NOT* respect the sentinel=>value semantics; i.e. the raw data may have entries of the sentinel value.
 
 Use-cases:
-  * It is generally recommended to use `Vector{Union{T, typeof(value}}` instead of `SentinelArray` if possible
+  * It is generally recommended to use `Vector{Union{T, typeof(value)}}` instead of `SentinelArray` if possible
   * Currently, a non-copying operation like `convert(Vector{T}, A::Vector{Union{T, Missing}})` isn't possible, even though you may know there aren't `missing` values; a `SentinelArray` allows this operation by just "unwrapping" the storage array, like `parent(A)`
   * It's also currently not possible to use `Vector{Union{T, Missing}}` with `Mmap.mmap`; with `SentinelArray`, you can write the parent array to disk and then do `SentinelArray(Mmap.mmap(array_type, file))` (assuming usage of default sentinel/value)
 
@@ -54,7 +54,7 @@ mutable struct SentinelArray{T, N, S, V, A <: AbstractArray{T, N}} <: AbstractAr
     sentinel::S
     value::V
 
-    SentinelArray(A::AbstractArray{Bool, N}, sentinel::S, value::V) where {N, S, V} = error("SentinelArray  not allowed for `Bool` elements (no sentinel available). Try using a `Array{Union{Bool, $V}` instead.")
+    SentinelArray(A::AbstractArray{Bool, N}, sentinel::S, value::V) where {N, S, V} = error("SentinelArray not allowed for `Bool` elements (no sentinel available). Try using an `Array{Union{Bool, $V}}` instead.")
     function SentinelArray(A::AbstractArray{T, N}, sentinel::S=defaultsentinel(T), value::V=defaultvalue(T)) where {T, N, S, V}
         return new{T, N, S, V, typeof(A)}(A, sentinel, value)
     end
@@ -80,7 +80,7 @@ defaultsentinel(T) = !isbitstype(T) ? undef : Base.issingletontype(T) ? throw(Ar
 # constructors
 function SentinelArray{T, N}(::UndefInitializer, dims::Tuple{Vararg{Integer}}, s=nothing, v=defaultvalue(T)) where {T, N}
     A = Array{T, N}(undef, dims)
-    # initilize w/ missing values
+    # initialize w/ missing values
     if isbitstype(T)
         if s === nothing
             sent = defaultsentinel(T)
