@@ -675,14 +675,11 @@ end
 
 Base.@propagate_inbounds function Base.insert!(A::ChainedVector{T, AT}, i::Integer, item) where {T, AT <: AbstractVector{T}}
     i isa Bool && throw(ArgumentError("invalid index: $i of type Bool"))
-    if i == 1 && length(A.arrays) == 0
-        push!(A.arrays, similar(AT, 0))
-        push!(A.inds, 0)
-        chunk, ix = 1, 1
-    else
-        @boundscheck checkbounds(A, i)
-        chunk, ix = index(A, i)
-    end
+    # Base allows inserting one past the end (the append case); routing it
+    # through push! also covers inserting into an empty ChainedVector (i == 1).
+    @boundscheck (1 <= i <= length(A) + 1) || throw(BoundsError(A, i))
+    i == length(A) + 1 && return push!(A, item)
+    chunk, ix = index(A, i)
     insert!(A.arrays[chunk], ix, item)
     for j = chunk:length(A.inds)
         @inbounds A.inds[j] += 1
