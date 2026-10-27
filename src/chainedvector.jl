@@ -244,6 +244,7 @@ end
 
 # custom index type used in eachindex
 struct ChainedVectorIndex{A} <: Integer
+    arrays::Vector{A}
     arrays_i::Int
     array::A
     array_i::Int
@@ -251,26 +252,36 @@ struct ChainedVectorIndex{A} <: Integer
 end
 
 for f in (:+, :-, :*, :<, :<=, :(==))
-    @eval Base.$f(a::ChainedVectorIndex, b::Integer) = $f(a.i, b)
-    @eval Base.$f(a::Integer, b::ChainedVectorIndex) = $f(a, b.i)
+    # BigInt methods avoid ambiguities with Base's BigInt/Integer methods
+    for I in (:Integer, :BigInt)
+        @eval Base.$f(a::ChainedVectorIndex, b::$I) = $f(a.i, b)
+        @eval Base.$f(a::$I, b::ChainedVectorIndex) = $f(a, b.i)
+    end
     @eval Base.$f(a::ChainedVectorIndex, b::ChainedVectorIndex) = $f(a.i, b.i)
 end
 (::Type{T})(x::ChainedVectorIndex) where {T <: Union{Signed, Unsigned}} = T(x.i)
+Base.BigInt(x::ChainedVectorIndex) = BigInt(x.i)
 Base.hash(x::ChainedVectorIndex, h::UInt) = hash(x.i, h)
 
 @inline Base.getindex(x::ChainedVectorIndex) = @inbounds x.array[x.array_i]
 
+# An index from `eachindex(B)` may be used on another ChainedVector `A`, e.g. `similar(B)`.
+# It addresses the chunk it holds only when used on `B`; elsewhere it's the linear index `x.i`.
+@inline ownsindex(A::ChainedVector, x::ChainedVectorIndex) = x.arrays === A.arrays
+
 function Base.checkbounds(::Type{Bool}, A::ChainedVector, ind::ChainedVectorIndex)
-    @assert ind.array === A.arrays[ind.arrays_i] "indexing ChainedVector with wrong ChainedVectorIndex"
+    ownsindex(A, ind) || return checkbounds(Bool, A, ind.i)
     return 1 <= ind.array_i <= length(ind.array)
 end
 
 Base.@propagate_inbounds function Base.getindex(A::ChainedVector, x::ChainedVectorIndex)
+    ownsindex(A, x) || return A[x.i]
     @boundscheck checkbounds(A, x)
     return @inbounds x.array[x.array_i]
 end
 
 Base.@propagate_inbounds function Base.setindex!(A::ChainedVector, v, x::ChainedVectorIndex)
+    ownsindex(A, x) || return setindex!(A, v, x.i)
     @boundscheck checkbounds(A, x)
     @inbounds x.array[x.array_i] = v
     return v
@@ -280,7 +291,7 @@ function Base.getindex(A::ChainedVector{T}, inds::AbstractVector{<:ChainedVector
     len = length(inds)
     x = Vector{T}(undef, len)
     for i = 1:len
-        x[i] = inds[i][]
+        x[i] = A[inds[i]]
     end
     return x
 end
@@ -300,8 +311,9 @@ function Base.nextind(A::ChainedVector, x::ChainedVectorIndex)
         i += 1
     else
         chunk_i += 1 # make sure this goes out of bounds
+        i += 1
     end
-    return ChainedVectorIndex(chunkidx, chunk, chunk_i, i)
+    return ChainedVectorIndex(x.arrays, chunkidx, chunk, chunk_i, i)
 end
 
 function Base.prevind(A::ChainedVector, x::ChainedVectorIndex)
@@ -319,8 +331,9 @@ function Base.prevind(A::ChainedVector, x::ChainedVectorIndex)
         i -= 1
     else
         chunk_i -= 1 # make sure this goes out of bounds
+        i -= 1
     end
-    return ChainedVectorIndex(chunkidx, chunk, chunk_i, i)
+    return ChainedVectorIndex(x.arrays, chunkidx, chunk, chunk_i, i)
 end
 
 # efficient iteration via eachindex
@@ -344,7 +357,7 @@ end
     chunkidx = chunk_i = 1
     @inbounds chunk = arrays[chunkidx]
     # we already ran cleanup! so chunks are guaranteed non-empty
-    return ChainedVectorIndex(chunkidx, chunk, chunk_i, 1), (arrays, chunkidx, chunk, length(chunk), chunk_i + 1, 2)
+    return ChainedVectorIndex(arrays, chunkidx, chunk, chunk_i, 1), (arrays, chunkidx, chunk, length(chunk), chunk_i + 1, 2)
 end
 
 @inline function Base.iterate(x::IndexIterator, (arrays, chunkidx, chunk, chunklen, chunk_i, i))
@@ -355,7 +368,7 @@ end
         chunklen = length(chunk)
         chunk_i = 1
     end
-    return ChainedVectorIndex(chunkidx, chunk, chunk_i, i), (arrays, chunkidx, chunk, chunklen, chunk_i + 1, i + 1)
+    return ChainedVectorIndex(arrays, chunkidx, chunk, chunk_i, i), (arrays, chunkidx, chunk, chunklen, chunk_i + 1, i + 1)
 end
 
 @inline function Base.iterate(A::ChainedVector)
@@ -425,6 +438,8 @@ function Base.copyto!(dest::ChainedVector{T}, doffs::Union{Signed, Unsigned},
 end
 
 Base.copyto!(dest::AbstractVector, src::ChainedVector) =
+    copyto!(dest, 1, src, 1, length(src))
+Base.copyto!(dest::PermutedDimsArray{<:Any, 1}, src::ChainedVector) =
     copyto!(dest, 1, src, 1, length(src))
 Base.copyto!(dest::AbstractVector, doffs::Union{Signed, Unsigned}, src::ChainedVector) =
     copyto!(dest, doffs, src, 1, length(src))
@@ -527,6 +542,7 @@ end
 function Base.resize!(A::ChainedVector{T, AT}, len) where {T, AT}
     len >= 0 || throw(ArgumentError("`len` must be >= 0 when resizing ChainedVector"))
     len′ = length(A)
+    len′ == len && return A
     if len′ < len
         # growing
         push!(A.arrays, similar(AT, len - len′))
@@ -661,14 +677,11 @@ end
 
 Base.@propagate_inbounds function Base.insert!(A::ChainedVector{T, AT}, i::Integer, item) where {T, AT <: AbstractVector{T}}
     i isa Bool && throw(ArgumentError("invalid index: $i of type Bool"))
-    if i == 1 && length(A.arrays) == 0
-        push!(A.arrays, similar(AT, 0))
-        push!(A.inds, 0)
-        chunk, ix = 1, 1
-    else
-        @boundscheck checkbounds(A, i)
-        chunk, ix = index(A, i)
-    end
+    # Base allows inserting one past the end (the append case); routing it
+    # through push! also covers inserting into an empty ChainedVector (i == 1).
+    @boundscheck (1 <= i <= length(A) + 1) || throw(BoundsError(A, i))
+    i == length(A) + 1 && return push!(A, item)
+    chunk, ix = index(A, i)
     insert!(A.arrays[chunk], ix, item)
     for j = chunk:length(A.inds)
         @inbounds A.inds[j] += 1
@@ -774,6 +787,7 @@ end
 
 function Base.map!(f::F, x::ChainedVector, y::ChainedVector{T}) where {F, T}
     length(x) >= length(y) || throw(ArgumentError("destination must be at least as long as map! source"))
+    isempty(y) && return x
     # check for potential fastpath
     N = length(y.arrays)
     if length(x.arrays) == N
@@ -791,6 +805,7 @@ function Base.map!(f::F, x::ChainedVector, y::ChainedVector{T}) where {F, T}
     end
     # slower path
     cleanup!(y)
+    N = length(y.arrays)
     yidx = yi = 1
     @inbounds ychunk = y.arrays[yidx]
     ychunklen = length(ychunk)
@@ -812,6 +827,11 @@ function Base.map!(f::F, x::ChainedVector, y::ChainedVector{T}) where {F, T}
 end
 
 Base.reduce(op::OP, x::ChainedVector) where {OP} = reduce(op, (reduce(op, y) for y in x.arrays))
+# Base's specialized methods; the generic one above would be ambiguous with them
+Base.reduce(::typeof(vcat), x::ChainedVector{<:AbstractVecOrMat}) =
+    invoke(reduce, Tuple{typeof(vcat), AbstractVector{<:AbstractVecOrMat}}, vcat, x)
+Base.reduce(::typeof(hcat), x::ChainedVector{<:AbstractVecOrMat}) =
+    invoke(reduce, Tuple{typeof(hcat), AbstractVector{<:AbstractVecOrMat}}, hcat, x)
 Base.foldl(op::OP, x::ChainedVector) where {OP} = foldl(op, (foldl(op, y) for y in x.arrays))
 Base.foldr(op::OP, x::ChainedVector) where {OP} = foldr(op, (foldr(op, y) for y in x.arrays))
 Base.mapreduce(f::F, op::OP, x::ChainedVector) where {F, OP} = reduce(op, (mapreduce(f, op, y) for y in x.arrays))
@@ -940,6 +960,8 @@ function Base.findall(A::ChainedVector{Bool})
 end
 
 Base.findall(f::Function, x::ChainedVector) = findall(map(f, x))
+Base.findall(f::Base.Fix2{typeof(in)}, x::ChainedVector) =
+    invoke(findall, Tuple{Base.Fix2{typeof(in)}, AbstractArray}, f, x)
 
 function Base.filter(f, a::ChainedVector{T}) where {T}
     j = 1
@@ -961,7 +983,17 @@ function Base.filter!(f, a::ChainedVector)
     return a
 end
 
-Base.replace(f::Base.Callable, a::ChainedVector) = ChainedVector([replace(f, A) for A in a.arrays])
-Base.replace!(f::Base.Callable, a::ChainedVector) = (foreach(A -> replace!(f, A), a.arrays); return a)
-Base.replace(a::ChainedVector, old_new::Pair...; count::Union{Integer,Nothing}=nothing) = ChainedVector([replace(A, old_new...; count=count) for A in a.arrays])
-Base.replace!(a::ChainedVector, old_new::Pair...; count::Integer=typemax(Int)) = (foreach(A -> replace!(A, old_new...; count=count), a.arrays); return a)
+# Without a `count` limit, chunks are replaced independently. A limit spans chunks,
+# so limited replacements use Base's elementwise methods.
+Base.replace(f::Base.Callable, a::ChainedVector; count::Integer=typemax(Int)) =
+    count < length(a) ? invoke(replace, Tuple{Base.Callable, Any}, f, a; count=count) :
+    ChainedVector([replace(f, A) for A in a.arrays])
+Base.replace!(f::Base.Callable, a::ChainedVector; count::Integer=typemax(Int)) =
+    count < length(a) ? invoke(replace!, Tuple{Base.Callable, Any}, f, a; count=count) :
+    (foreach(A -> replace!(f, A), a.arrays); a)
+Base.replace(a::ChainedVector, old_new::Pair...; count::Union{Integer,Nothing}=nothing) =
+    count === nothing ? ChainedVector([replace(A, old_new...) for A in a.arrays]) :
+    invoke(replace, Tuple{Any, Vararg{Pair}}, a, old_new...; count=count)
+Base.replace!(a::ChainedVector, old_new::Pair...; count::Integer=typemax(Int)) =
+    count < length(a) ? invoke(replace!, Tuple{Any, Vararg{Pair}}, a, old_new...; count=count) :
+    (foreach(A -> replace!(A, old_new...), a.arrays); a)
