@@ -148,6 +148,7 @@ end
 end
 
 Base.@propagate_inbounds function Base.getindex(x::ChainedVector{T, A}, inds::AbstractVector{Int}) where {T, A}
+    @boundscheck checkbounds(x, inds)
     len = length(inds)
     arrays = x.arrays
     if len == 0
@@ -185,6 +186,7 @@ Base.@propagate_inbounds function Base.getindex(x::ChainedVector{T, A}, inds::Ab
 end
 
 Base.@propagate_inbounds function Base.getindex(x::ChainedVector{T, A}, inds::UnitRange{Int}) where {T, A}
+    @boundscheck checkbounds(x, inds)
     arrays = x.arrays
     len = length(inds)
     if len == 0
