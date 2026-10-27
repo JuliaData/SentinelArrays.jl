@@ -72,6 +72,14 @@ end
     insert!(x, 1, 2)
     @test x[1] == 2
 
+    # insert! one past the end appends (Base allows 1 <= i <= length+1)
+    x = ChainedVector([[1, 2], [3]])
+    insert!(x, 4, 99)
+    @test x == [1, 2, 3, 99]
+    @test_throws BoundsError insert!(x, 6, 0)
+    x = ChainedVector([Int[], [1, 2]])
+    insert!(x, 3, 7)
+    @test x == [1, 2, 7]
 
     x = ChainedVector([[1,2,3], [4,5,6], [7,8,9,10]])
     y = ChainedVector([[11,12,13], [14,15,16], [17,18,19,20]])
@@ -250,6 +258,9 @@ end
     y = ChainedVector([[1,2,3], [4,5,6,7], [8,9,10]])
     map!(x -> x + 1, x, y)
     @test all(x -> x[1] + 1 == x[2], zip(y, x))
+    x = ChainedVector([[1,2,3], [4,5,6]])
+    y = [1,2]
+    @test map!(x -> x + 10, x, y)== [11,12,3,4,5,6]
 
     # reductions
     x = ChainedVector([[1,2,3], [4,5,6], [7,8,9,10]])
@@ -376,6 +387,17 @@ end
     @test replace!(iseven, copy(x)) == replace!(iseven, x)
     @test map(x -> x == 1 ? 2.0 : x, x) == replace!(x, 1 => 2)
     @test isempty(x)
+
+    @test replace!(ChainedVector([[1,2], [1,2]]), 2=>20) == [1,20,1,20]
+    @test replace!(ChainedVector([[1,2], [1,2]]), 2=>20, count=1) == [1,20,1,2]
+    @test replace!(ChainedVector([[1,2], [1,2]]), 2=>20, count=2) == [1,20,1,20]
+    x = [1,2]
+    @test replace!(ChainedVector([x,[2,3]]), 2=>99) == [1,99,99,3]
+    @test x == [1,99]
+    # results stay ChainedVectors and promote like Base
+    @test replace(ChainedVector([[1,2], [1,2]]), 2=>2.5) isa ChainedVector{Float64}
+    @test replace(ChainedVector([[1,2], [1,2]]), 2=>2.5, count=1) == [1,2.5,1,2]
+    @test replace(ChainedVector([[1,missing], [missing]]), missing=>0) isa ChainedVector{Int}
 
     # copyto!
     # ChainedVector dest: doffs, soffs, n
@@ -620,6 +642,48 @@ end
     end
 end
 
+@testset "replace[!] comparison with Vector" begin
+    
+    testvecs = (
+        [[1, 2], [3, 2, 5]],
+        [[1, 2]],
+        [[2],[2],[2],[2,3]],
+        [[1,2,missing]],
+        [[missing,1],[missing,2,1]],
+        [[missing]]
+    )
+    function missing_equal(a,b)
+        ismissing(a) && ismissing(b) && return true
+        ismissing(a) ⊻ ismissing(b) && return false
+        return all(skipmissing(a) .== skipmissing(b))
+    end 
+    gen_cv_v(x) = (c = ChainedVector(x); (c, collect(c)))
+    for f in (replace, replace!)
+        for x in testvecs
+            cv, v = gen_cv_v(x)
+            @test missing_equal(f(v, 2 => 22),f(cv, 2 => 22))
+            @test missing_equal(v,cv)
+
+            cv, v = gen_cv_v(x)
+            @test missing_equal(f(x -> x ÷ 2, v), f(x -> x ÷ 2, cv))
+            @test missing_equal(v,cv)
+
+            for c in (0, 1, 2, 3)
+                cv, v = gen_cv_v(x)
+                @test missing_equal(f(x -> x ÷ 2, v, count=c), f(x -> x ÷ 2, cv, count=c))
+                @test missing_equal(v,cv)
+
+                for p in ((2=>2,),(2 => 22,), (2 => 22, 3 => 33))
+                    cv, v = gen_cv_v(x)
+                    @test missing_equal(f(v, p..., count=c), f(cv, p..., count=c))
+                    @test eltype(f(v, p..., count=c)) == eltype(f(cv, p..., count=c))
+                    @test missing_equal(v,cv)
+                end
+            end
+        end
+    end
+end
+
 
 @testset "iteration protocol on ChainedVector" begin
     for len in 0:6
@@ -730,8 +794,29 @@ end
     ind = prevind(x, ind)
     @test_throws BoundsError x[ind]
     # https://github.com/apache/arrow-julia/issues/418
+    # indices from one ChainedVector index others by position, even under @inbounds
     y = ChainedVector([collect(1:i) for i = 10:100])
-    @test_throws AssertionError x[first(eachindex(y))]
+    z = ChainedVector([x[1:7], x[8:end]]) # same values, different chunks
+    for (i, ind) in enumerate(eachindex(y))
+        @test x[ind] == @inbounds(x[ind]) == z[ind] == x[i] == z[i]
+        @inbounds y[ind] = -i
+    end
+    @test y == -(1:length(y))
+    w = similar(y)
+    for ind in eachindex(y)
+        @inbounds w[ind] = y[ind]
+    end
+    @test w == y
+    longer = ChainedVector([x.arrays; [[1]]])
+    @test_throws BoundsError x[collect(eachindex(longer))[end]]
+    p = ChainedVector([[1, 2], [3, 4]])
+    i = first(eachindex(ChainedVector([[10], [20, 30, 40]])))
+    @test p[nextind(p, i)] == 2
+    @test p[prevind(p, nextind(p, nextind(p, i)))] == 2
+    # generic Base code indexes `similar(A)` with `eachindex(A)`
+    a = ChainedVector([[1, 2], [1, 2]])
+    @test replace(x -> 10x, a; count=3) == [10, 20, 10, 2]
+    @test a == [1, 2, 1, 2]
     # https://github.com/JuliaData/SentinelArrays.jl/issues/74
     x = ChainedVector([[true], [false], [true]])
     @test BitVector(x) == [true, false, true]
@@ -749,6 +834,27 @@ end
     @test resize!(c,0) == []
 
     @test sum(unique!(ChainedVector([[1],[2],[3]]))) == 6
+end
+
+@testset "no-op resizing ChainedVector" begin
+    emptied = empty!(ChainedVector([[1, 2], [3]]))
+    popped = ChainedVector([[1]])
+    pop!(popped)
+    shrunk = resize!(ChainedVector([[1, 2], [3]]), 0)
+    for c in (ChainedVector(Vector{Int}[]), ChainedVector([Int[]]), emptied, popped, shrunk)
+        @test resize!(c, 0) === c
+        @test isempty(c)
+        @test push!(c, 4) === c
+        @test collect(c) == [4]
+        @test pop!(c) == 4
+        @test append!(c, [5, 6]) === c
+        @test collect(c) == [5, 6]
+    end
+    c = ChainedVector([[1], [2, 3]])
+    @test resize!(c, length(c)) === c
+    @test collect(c) == [1, 2, 3]
+    @test_throws ArgumentError resize!(c, -1)
+    @test collect(c) == [1, 2, 3]
 end
 
 @testset "MissingVector resizing" begin
@@ -779,7 +885,7 @@ end
 end
 
 @testset "getindex with UnitRange" begin
-    x = ChainedVector([collect(1:i) for i = 10:100])
+    x = ChainedVector([collect(1:i) for i = 1:10])
     @test isempty(x[1:0])
     @test x[1:1] == [1]
     @test x[1:end] == x
@@ -801,5 +907,45 @@ end
         x = ChainedVector([f(1:2), f(3:4)])
         @test @inferred(x[[2,3]]) == 2:3
         @test @inferred(x[Int[]]) == Int[]
+    end
+end
+
+@testset "map! from empty ChainedVector" begin
+    for chunks in (Vector{Int}[], [Int[]], [[1,2,3]], [[1],[2,3]])
+        destination=ChainedVector(deepcopy(chunks))
+        before=collect(destination)
+        for source_chunks in (Vector{Int}[], [Int[]], [Int[],Int[]])
+            source=ChainedVector(deepcopy(source_chunks))
+            calls=Ref(0)
+            f=x->(calls[]+=1; x+1)
+            @test map!(f,destination,source) === destination
+            @test collect(destination)==before
+            @test calls[]==0
+            @test isempty(source)
+        end
+    end
+end
+
+function source_with_empty_chunks(position)
+    src=ChainedVector([[1,2]])
+    if position in (:front,:both)
+        prepend!(src,Int[])
+    end
+    if position in (:back,:both)
+        append!(src,Int[])
+    end
+    return src
+end
+@testset "map! after adding empty chunks" begin
+    for position in (:front,:back,:both), destchunks in ([[0,0]],[[0,0,0]],[[0],[0],[0]])
+        source=source_with_empty_chunks(position)
+        dest=ChainedVector(deepcopy(destchunks))
+        expected=collect(dest)
+        map!(x->x+1,expected,collect(source))
+        calls=Ref(0)
+        @test map!(x->(calls[]+=1; x+1),dest,source) === dest
+        @test collect(dest)==expected
+        @test calls[]==2
+        @test collect(source)==[1,2]
     end
 end

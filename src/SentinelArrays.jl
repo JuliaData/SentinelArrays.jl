@@ -22,6 +22,9 @@ If no `sentinel` is given, isbits element types use the value with all bits set 
 Elements of the same `Real` type as the sentinel match it by `===`; others use `isequal`.
 So a `NaN` sentinel matches only its exact bit pattern, and other `NaN`s are ordinary values.
 
+Elements of the same `Real` type as the sentinel match it by `===`; others use `isequal`.
+So a `NaN` sentinel matches only its exact bit pattern, and other `NaN`s are ordinary values.
+
 A `SentinelArray` allows setting an element to `value`, which will result in the `sentinel` being stored in the wrapped array.
 
 For isbits element types, if a `setindex!` operation is attempted with the `SentinelArray`'s current sentinel value, another sentinel will be attempted to be chosen that doesn't already exist in the wrapped array.
