@@ -902,6 +902,13 @@ end
     end
 end
 
+@testset "getindex bounds checks" begin
+    x = ChainedVector([[1, 2], [3]])
+    for inds in ([0], [4], [1, 4], [-1], 0:1, 3:4, -1:0)
+        @test_throws BoundsError x[inds]
+    end
+end
+
 @testset "getindex type-inference" begin
     for f in (identity, collect)
         x = ChainedVector([f(1:2), f(3:4)])
