@@ -72,6 +72,14 @@ end
     insert!(x, 1, 2)
     @test x[1] == 2
 
+    # insert! one past the end appends (Base allows 1 <= i <= length+1)
+    x = ChainedVector([[1, 2], [3]])
+    insert!(x, 4, 99)
+    @test x == [1, 2, 3, 99]
+    @test_throws BoundsError insert!(x, 6, 0)
+    x = ChainedVector([Int[], [1, 2]])
+    insert!(x, 3, 7)
+    @test x == [1, 2, 7]
 
     x = ChainedVector([[1,2,3], [4,5,6], [7,8,9,10]])
     y = ChainedVector([[11,12,13], [14,15,16], [17,18,19,20]])
