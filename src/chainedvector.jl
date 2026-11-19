@@ -690,19 +690,10 @@ Base.@propagate_inbounds function Base.insert!(A::ChainedVector{T, AT}, i::Integ
 end
 
 function Base.vcat(A::ChainedVector{T, AT}, arrays::ChainedVector{T, AT}...) where {T, AT <: AbstractVector{T}}
-    isempty(arrays) && return Base.unaliascopy(A)
-    newarrays = vcat(A.arrays, map(x->x.arrays, arrays)...)
-    n = length(A.inds)
-    inds = Vector{Int}(undef, n + sum(x->length(x.inds), arrays))
-    copyto!(inds, 1, A.inds, 1, n)
-    m = n + 1
-    for x in arrays
-        for y in x.arrays
-            @inbounds inds[m] = ((m - 1) == 0 ? 0 : inds[m - 1]) + length(y)
-            m += 1
-        end
-    end
-    return ChainedVector{T, AT}(newarrays, inds)
+    # `append!` chains chunks, so copy every input to keep the result from sharing them
+    B = Base.unaliascopy(A)
+    foreach(x -> append!(B, Base.unaliascopy(x)), arrays)
+    return B
 end
 
 function Base.append!(A::ChainedVector{T, AT}, B::AT) where {T, AT <: AbstractVector{T}}
@@ -713,6 +704,8 @@ function Base.append!(A::ChainedVector{T, AT}, B::AT) where {T, AT <: AbstractVe
 end
 
 function Base.append!(A::ChainedVector{T, AT}, B::ChainedVector{T, AT}) where {T, AT <: AbstractVector{T}}
+    # chaining A's own chunks into A would make each element appear twice in shared storage
+    B === A && (B = Base.unaliascopy(B))
     append!(A.arrays, B.arrays)
     n = length(A.inds)
     m = length(B.inds)
@@ -741,6 +734,7 @@ function Base.prepend!(A::ChainedVector{T, AT}, B::AT) where {T, AT <: AbstractV
 end
 
 function Base.prepend!(A::ChainedVector{T, AT}, B::ChainedVector{T, AT}) where {T, AT <: AbstractVector{T}}
+    B === A && (B = Base.unaliascopy(B))
     prepend!(A.arrays, B.arrays)
     n = length(A.inds)
     m = length(B.inds)
