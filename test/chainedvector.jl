@@ -857,6 +857,21 @@ end
     @test collect(c) == [1, 2, 3]
 end
 
+@testset "resize!, append!, and prepend! leave no empty chunks behind" begin
+    x = ChainedVector([[1, 2], [3]])
+    resize!(x, 0)
+    append!(x, [10, 20])
+    @test x[[1, 2]] == [10, 20]
+    x = ChainedVector([[10, 20]])
+    prepend!(x, Int[])
+    append!(x, Int[])
+    @test x[[1, 2]] == [10, 20]
+    @test x[[true, true]] == [10, 20]
+    @test maximum(x) == 20
+    @test extrema(x) == (10, 20)
+    @test foldl(+, x) == 30
+end
+
 @testset "MissingVector resizing" begin
     v = MissingVector(1)
     @test isequal(push!(v, missing), [missing, missing])

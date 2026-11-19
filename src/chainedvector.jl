@@ -547,6 +547,9 @@ function Base.resize!(A::ChainedVector{T, AT}, len) where {T, AT}
         # growing
         push!(A.arrays, similar(AT, len - len′))
         push!(A.inds, len)
+    elseif len == 0
+        # shrinking chunk 1 to zero would leave an empty chunk
+        empty!(A)
     else
         # shrinking
         chunk = searchsortedfirst(A.inds, len)
@@ -706,6 +709,7 @@ function Base.vcat(A::ChainedVector{T, AT}, arrays::ChainedVector{T, AT}...) whe
 end
 
 function Base.append!(A::ChainedVector{T, AT}, B::AT) where {T, AT <: AbstractVector{T}}
+    isempty(B) && return A
     lastind = length(A.arrays) == 0 ? 0 : A.inds[end]
     push!(A.arrays, B)
     push!(A.inds, lastind + length(B))
@@ -731,6 +735,7 @@ function Base.append!(A::ChainedVector{T}, B) where {T}
 end
 
 function Base.prepend!(A::ChainedVector{T, AT}, B::AT) where {T, AT <: AbstractVector{T}}
+    isempty(B) && return A
     pushfirst!(A.arrays, B)
     n = length(B)
     pushfirst!(A.inds, n)
