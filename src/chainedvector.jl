@@ -152,11 +152,8 @@ Base.@propagate_inbounds function Base.getindex(x::ChainedVector{T, A}, inds::Ab
     len = length(inds)
     arrays = x.arrays
     if len == 0
-        if isempty(arrays)
-            return similar(eltype(arrays), 0)
-        else
-            return similar(arrays[1], 0)
-        end
+        # with no chunks there is no chunk to call `similar` on
+        return isempty(arrays) ? T[] : similar(arrays[1], 0)
     end
     res = similar(arrays[1], len) # out of bounds if `arrays` is empty
     # N = Threads.nthreads()
@@ -190,11 +187,8 @@ Base.@propagate_inbounds function Base.getindex(x::ChainedVector{T, A}, inds::Un
     arrays = x.arrays
     len = length(inds)
     if len == 0
-        if isempty(arrays)
-            return similar(eltype(arrays), 0)
-        else
-            return similar(arrays[1], 0)
-        end
+        # with no chunks there is no chunk to call `similar` on
+        return isempty(arrays) ? T[] : similar(arrays[1], 0)
     end
 
     # linearindex first item
@@ -388,15 +382,15 @@ end
 
 function Base.similar(x::ChainedVector{T}, ::Type{S}, _len::Base.DimOrInd=length(x)) where {T, S}
     len = _len isa Integer ? _len : length(_len)
+    N = length(x.arrays)
+    # with no chunks there is no chunk to call `similar` on
+    N == 0 && return ChainedVector([Vector{S}(undef, len)])
     if len == length(x)
         # return same chunks structure as x
         return ChainedVector([similar(A, S, length(A)) for A in x.arrays])
     end
     # otherwise, split the different new len over existing # of chunks in x
-    N = length(x.arrays)
-    if N == 0
-        return ChainedVector([similar(eltype(x.arrays), len)])
-    elseif len <= N
+    if len <= N
         return ChainedVector([similar(x.arrays[1], S, len)])
     end
     nlen, r = divrem(len, N)
