@@ -416,6 +416,8 @@ function Base.copyto!(dest::ChainedVector{T}, doffs::Union{Signed, Unsigned},
     (doffs > 0 && (doffs + n - 1) <= length(dest) &&
     soffs > 0 && (soffs + n - 1) <= length(src)) || throw(ArgumentError("out of range arguments to copyto! on ChainedVector"))
     n == 0 && return dest
+    # copying chunk by chunk would overwrite an overlapping source before reading it
+    src = Base.unalias(dest, src)
     N = length(dest.inds)
     # find first chunk where we'll start copying to
     aidx, _ = index(dest, doffs)
@@ -452,6 +454,7 @@ function Base.copyto!(dest::AbstractVector{T}, doffs::Union{Signed, Unsigned},
     (doffs > 0 && (doffs + n - 1) <= length(dest) &&
     soffs > 0 && (soffs + n - 1) <= length(src)) || throw(ArgumentError("out of range arguments to copyto! on ChainedVector"))
     n == 0 && return dest
+    src = Base.unalias(dest, src)
     N = length(src.inds)
     # find first chunk where we'll start copying from
     aidx, i = index(src, soffs)
@@ -482,6 +485,7 @@ function Base.copyto!(dest::ChainedVector{T}, doffs::Union{Signed, Unsigned},
     (doffs > 0 && (doffs + n - 1) <= length(dest) &&
     soffs > 0 && (soffs + n - 1) <= length(src)) || throw(ArgumentError("out of range arguments to copyto! on ChainedVector"))
     n == 0 && return dest
+    src = Base.unalias(dest, src)
     cleanup!(src)
     # find first chunk where we'll start copying to
     dN = length(dest.inds)
