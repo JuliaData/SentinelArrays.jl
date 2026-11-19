@@ -607,40 +607,30 @@ Base.@propagate_inbounds function Base.deleteat!(A::ChainedVector, inds)
     prevind = 0
     ind = chunk > N ? 0 : A.inds[chunk]
     todelete = Int[]
-    while y !== nothing
-        # find chunk where deleting starts
-        while ind < i
-            chunk += 1
-            chunk > N && throw(BoundsError(A, i))
-            prevind = ind
-            @inbounds ind = A.inds[chunk]
+    try
+        while y !== nothing
+            # find chunk where deleting starts
+            while ind < i
+                chunk += 1
+                chunk > N && throw(BoundsError(A, i))
+                prevind = ind
+                @inbounds ind = A.inds[chunk]
+            end
+            # gather all indices for this chunk
+            while i <= ind
+                push!(todelete, i - prevind)
+                y = iterate(inds, s)
+                y === nothing && break
+                i, s = y
+            end
+            # delete indices from this chunk
+            @inbounds deleteat!(A.arrays[chunk], todelete)
+            empty!(todelete)
         end
-        # gather all indices for this chunk
-        while i <= ind
-            push!(todelete, i - prevind)
-            y = iterate(inds, s)
-            y === nothing && break
-            i, s = y
-        end
-        # delete indices from this chunk
-        @inbounds deleteat!(A.arrays[chunk], todelete)
-        empty!(todelete)
-    end
-    # reset inds
-    x = 0
-    @inbounds for j = 1:N
-        # note that A.arrays[j] can have zero length
-        len = length(A.arrays[j])
-        if len == 0
-            push!(todelete, j)
-        else
-            x += len
-            A.inds[j] = x
-        end
-    end
-    for j in Iterators.reverse(todelete)
-        deleteat!(A.arrays, j)
-        deleteat!(A.inds, j)
+    finally
+        # earlier chunks may already have shrunk when a later index throws,
+        # so always recompute inds (dropping emptied chunks) from the chunks
+        setinds!(A.arrays, A.inds)
     end
     return A
 end
