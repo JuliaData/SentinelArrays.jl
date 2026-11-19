@@ -393,3 +393,12 @@ include("BufferedVectors.jl")
     @test i < big(4) && big(2) < i && i == big(3) && big(3) <= i
     @test BigInt(i) == 3
 end
+
+@testset "prepend! a SentinelVector to itself" begin
+    x = SentinelArray([1, 2, 3])
+    x[2] = missing
+    @test isequal(prepend!(x, x), [1, missing, 3, 1, missing, 3])
+    s = SentinelArray(["a", "b"], "NA", missing)
+    @test isequal(prepend!(s, s), ["a", "b", "a", "b"])
+end
+
