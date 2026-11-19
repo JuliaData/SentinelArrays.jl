@@ -884,6 +884,14 @@ end
     end
 end
 
+@testset "deleteat! leaves a usable ChainedVector when an index throws" begin
+    for inds in ([1, 9], [1, 4, 3])
+        x = ChainedVector([[1, 2, 3], [4, 5]])
+        @test_throws Union{BoundsError, ArgumentError} deleteat!(x, inds)
+        @test [x[i] for i in 1:length(x)] == collect(x)
+    end
+end
+
 @testset "getindex with UnitRange" begin
     x = ChainedVector([collect(1:i) for i = 1:10])
     @test isempty(x[1:0])
