@@ -956,3 +956,18 @@ end
         @test collect(source)==[1,2]
     end
 end
+
+@testset "map joins chunk element types like Base's map" begin
+    big = Int64(2)^60 + 1  # Int64 so the value is exact on 32-bit Julia too
+    x = ChainedVector([Int64[1, 2], [big]])
+    f(v) = v == 1 ? 0.5 : v
+    y = map(f, x)
+    @test eltype(y) == eltype(map(f, collect(x))) == Real
+    @test y[3] === big
+    @test eltype(map(v -> v == 3 ? missing : v, ChainedVector([[1], [3]]))) == Union{Missing, Int}
+    for empty in (ChainedVector(Vector{Int}[]), ChainedVector([view([1], 1:0)]))
+        @test isempty(map(v -> v + 0.5, empty))
+        @test eltype(map(v -> v + 0.5, empty)) == Float64
+    end
+end
+
