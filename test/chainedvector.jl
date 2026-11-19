@@ -822,6 +822,29 @@ end
     @test BitVector(x) == [true, false, true]
 end
 
+@testset "vcat and self-append do not share storage" begin
+    x = ChainedVector([[1, 2], [3]])
+    y = ChainedVector([[4]])
+    z = vcat(x, y)
+    z[1] = 0
+    push!(z, 5)
+    push!(y, 6)
+    @test x == [1, 2, 3]
+    @test y == [4, 6]
+    z = vcat(x, x)
+    z[1] = 0
+    @test z == [0, 2, 3, 1, 2, 3]
+    @test x == [1, 2, 3]
+    a = ChainedVector([[1, 2], [3]])
+    append!(a, a)
+    a[1] = 0
+    @test a == [0, 2, 3, 1, 2, 3]
+    b = ChainedVector([[1, 2], [3]])
+    prepend!(b, b)
+    b[1] = 0
+    @test b == [0, 2, 3, 1, 2, 3]
+end
+
 # https://github.com/JuliaData/SentinelArrays.jl/issues/110
 @testset "Resizing ChainedVector" begin
     c = ChainedVector([[:a],[:b1,:b2,:b3],[:c]])
