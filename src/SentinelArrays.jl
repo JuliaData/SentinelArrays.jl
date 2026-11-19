@@ -406,7 +406,8 @@ function _growbeg!(A::SentinelVector, n)
     return
 end
 
-Base.prepend!(A::SentinelVector, items::AbstractVector) = _prepend!(A, Base.IteratorSize(items), items)
+# `_prepend!` grows `A` before reading `items`, so copy `items` first when it shares storage with `A`
+Base.prepend!(A::SentinelVector, items::AbstractVector) = _prepend!(A, Base.IteratorSize(items), Base.unalias(A, items))
 
 Base.prepend!(A::SentinelVector, iter) = _prepend!(A, Base.IteratorSize(iter), iter)
 Base.pushfirst!(A::SentinelVector, iter...) = prepend!(A, iter)
