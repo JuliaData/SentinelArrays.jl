@@ -779,6 +779,16 @@ end
     @test x[end] == 2
 end
 
+@testset "ChainedVectors without chunks build Vector results" begin
+    for x in (ChainedVector(Vector{Int}[]), ChainedVector([view([1], 1:0)]))
+        @test eltype(similar(x, Float64, 3)) == Float64
+        @test length(similar(x, Float64, 3)) == 3
+        @test isempty(similar(x))
+        @test x[Int[]] == Int[]
+        @test x[1:0] == Int[]
+    end
+end
+
 @testset "prevind/nextind ChainedVector" begin
     x = ChainedVector([collect(1:i) for i = 10:100])
     ind = first(eachindex(x))
