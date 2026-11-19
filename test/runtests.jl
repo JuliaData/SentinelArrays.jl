@@ -373,6 +373,17 @@ c2 = copy(c)
 deleteat!(c2, Int[])
 @test length(c2) == 15
 
+@testset "custom sentinels for non-isbits element types fill new slots" begin
+    x = SentinelVector{String}(undef, 3, "NA", missing)
+    @test isequal(collect(x), [missing, missing, missing])
+    x[2] = "a"
+    @test isequal(collect(x), [missing, "a", missing])
+    y = SentinelArray(["a", "NA"], "NA", missing)
+    resize!(y, 3)
+    @test isequal(collect(y), ["a", missing, missing])
+    @test isequal(collect(SentinelVector{String}(undef, 2, undef, missing)), [missing, missing])
+end
+
 end
 
 include("chainedvector.jl")
