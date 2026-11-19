@@ -684,6 +684,21 @@ end
     end
 end
 
+@testset "findmin, findmax, and extrema order NaN, missing, and -0.0 as Base does" begin
+    for v in ([1.0, NaN, 0.5], [NaN, 1.0, 0.5], [1, missing, 0], [0.0, -0.0], [-0.0, 0.0], [2.0, 1.0, 1.0, NaN, NaN])
+        for k in 1:length(v) - 1
+            x = ChainedVector([v[1:k], v[k+1:end]])
+            @test isequal(findmin(x), findmin(v))
+            @test isequal(findmax(x), findmax(v))
+            @test isequal(findmin(-, x), findmin(-, v))
+            @test isequal(argmin(x), argmin(v))
+            @test isequal(argmax(-, x), argmax(-, v))
+            @test isequal(extrema(x), extrema(v))
+            @test isequal(extrema(-, x), extrema(-, v))
+        end
+    end
+end
+
 
 @testset "iteration protocol on ChainedVector" begin
     for len in 0:6
