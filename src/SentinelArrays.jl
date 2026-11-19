@@ -233,7 +233,9 @@ Base.@propagate_inbounds function Base.setindex!(A::SentinelArray{T, N, S, V}, v
 end
 
 # other AbstractArray functions
-function Base.reverse(A::SentinelVector, s::Integer=first(LinearIndices(A)), n::Integer=last(LinearIndices(A)))
+function Base.reverse(A::SentinelVector{T, S}, s::Integer=first(LinearIndices(A)), n::Integer=last(LinearIndices(A))) where {T, S}
+    # with an `undef` sentinel the parent has unassigned slots, and reversing the parent would read them
+    S === UndefInitializer && return reverse!(Base.unaliascopy(A), s, n)
     return SentinelArray(reverse(parent(A), s, n), A.sentinel, A.value)
 end
 
