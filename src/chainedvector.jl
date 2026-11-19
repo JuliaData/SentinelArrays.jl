@@ -844,50 +844,28 @@ Base.extrema(x::ChainedVector) = extrema(identity, x)
 
 function Base.extrema(f::F, x::ChainedVector) where {F}
     isempty(x) && throw(ArgumentError("collection must be non-empty"))
-    mi = ma = nothing
-    for A in x.arrays
-        mi2, ma2 = extrema(f, A)
-        if mi === nothing || mi2 < mi
-            mi = mi2
-        end
-        if ma === nothing || ma2 > ma
-            ma = ma2
-        end
-    end
-    return mi, ma
+    # Base's `minimum`/`maximum` combine the chunk results, so NaN, missing, and -0.0 order as in Base.
+    chunks = [extrema(f, A) for A in x.arrays]
+    return minimum(first, chunks), maximum(last, chunks)
 end
 
 function Base.findmax(f::F, x::ChainedVector) where {F}
     isempty(x) && throw(ArgumentError("collection must be non-empty"))
-    cleanup!(x) # get rid of any empty arrays
-    i = 1
-    y = f(x.arrays[1][1])
-    # x > y iff y < x for a well ordered set
-    # nb. isgreater = !isless is not correct. That is `>=`
-    isgreater(x, y) = isless(y, x)
-    return findXwithfirst(isgreater, f, x, y, i)
+    return findbychunk(findmax, f, x)
 end
 
 function Base.findmin(f::F, x::ChainedVector) where {F}
     isempty(x) && throw(ArgumentError("collection must be non-empty"))
-    cleanup!(x) # get rid of any empty arrays
-    i = 1
-    y = f(x.arrays[1][1])
-    return findXwithfirst(isless, f, x, y, i)
+    return findbychunk(findmin, f, x)
 end
 
-function findXwithfirst(comp, f, x, y, i)
-    i′ = 1
-    for A in x.arrays
-        for y′ in A
-            y′′ = f(y′)
-            c = comp(y′′, y)  # store this before y changes
-            y = ifelse(c, y′′, y)
-            i = ifelse(c, i′, i)
-            i′ += 1
-        end
-    end
-    return y, i
+# `findX` picks each chunk's winner and then the winner among those,
+# so NaN, missing, and ties resolve as in Base.
+function findbychunk(findX, f, x)
+    cleanup!(x) # get rid of any empty arrays
+    winners = [findX(f, A) for A in x.arrays]
+    y, chunk = findX(first, winners)
+    return y, (chunk == 1 ? 0 : x.inds[chunk - 1]) + winners[chunk][2]
 end
 
 Base.findmax(x::ChainedVector) = findmax(identity, x)

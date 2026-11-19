@@ -56,7 +56,7 @@ B = SentinelArray(parent, typemax(UInt8), nothing)
 
 ## Project Status
 
-CI tests Julia 1.3 (the minimum supported version), the latest release, and nightly on Linux, and the latest release on 32-bit Windows.
+CI tests Julia 1.10 (the minimum supported version), the latest release, and nightly on Linux, and the latest release on 32-bit Windows.
 
 ## Contributing and Questions
 
