@@ -762,7 +762,13 @@ end
 Base.in(x, A::ChainedVector) = any(y->x in y, A.arrays)
 
 Base.foreach(f::F, x::ChainedVector) where {F} = foreach(x->foreach(f, x), x.arrays)
-Base.map(f::F, x::ChainedVector) where {F} = ChainedVector([map(f, y) for y in x.arrays])
+function Base.map(f::F, x::ChainedVector{T}) where {F, T}
+    # without chunks, mapping an empty Vector gives the eltype Base's `map` would
+    arrays = isempty(x.arrays) ? [map(f, T[])] : [map(f, y) for y in x.arrays]
+    # join chunk eltypes the way `map` joins element types, so Int and Float64 chunks give Real, not a lossy Float64
+    S = mapreduce(eltype, Base.promote_typejoin, arrays)
+    return ChainedVector([convert(AbstractVector{S}, A) for A in arrays])
+end
 
 # function Base.map(f::F, x::ChainedVector) where {F}
 #     tasks = map(A -> Threads.@spawn(map(f, A)), x.arrays)
