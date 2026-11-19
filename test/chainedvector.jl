@@ -836,6 +836,20 @@ end
     @test sum(unique!(ChainedVector([[1],[2],[3]]))) == 6
 end
 
+@testset "copyto! within one ChainedVector handles overlap" begin
+    for (d, s, n) in ((2, 1, 2), (1, 2, 2), (2, 1, 4), (3, 1, 3))
+        # the source range is read before any write, so a copy of it gives the expected result
+        expected = copyto!([1, 2, 3, 4, 5], d, [1, 2, 3, 4, 5][s:s+n-1])
+        x = ChainedVector([[1, 2], [3], [4, 5]])
+        @test copyto!(x, d, x, s, n) == expected
+        x = ChainedVector([[1, 2], [3], [4, 5]])
+        @test copyto!(x, d, view(x, s:s+n-1)) == expected
+        x = ChainedVector([[1, 2], [3], [4, 5]])
+        copyto!(view(x, d:d+n-1), 1, x, s, n)
+        @test x == expected
+    end
+end
+
 @testset "no-op resizing ChainedVector" begin
     emptied = empty!(ChainedVector([[1, 2], [3]]))
     popped = ChainedVector([[1]])
