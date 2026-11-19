@@ -340,9 +340,7 @@ end
     @test !any(map(x -> iseven(x), x))
     @test all(x -> iseven(x), x)
     @test all(map(x -> iseven(x), x))
-    @test_throws Union{ArgumentError,MethodError} reduce(+, x)
-    @test_throws Union{ArgumentError,MethodError} foldl(+, x)
-    @test_throws Union{ArgumentError,MethodError} foldr(+, x)
+    @test reduce(+, x) === foldl(+, x) === foldr(+, x) === sum(x) === 0.0
     @test_throws Union{ArgumentError,MethodError} mapreduce(x -> x + 1, +, x)
     @test_throws Union{ArgumentError,MethodError} mapfoldl(x -> x + 1, +, x)
     @test_throws Union{ArgumentError,MethodError} mapfoldr(x -> x + 1, +, x)
@@ -639,6 +637,22 @@ end
         end
         @test inv(argmax(inv, x)) == maximum(inv, x)
         @test inv(argmin(inv, x)) == minimum(inv, x)
+    end
+end
+
+@testset "folds keep their order across chunks" begin
+    op(a, b) = string("(", a, ",", b, ")")
+    x = ChainedVector([[1, 2], [3], [4, 5]])
+    v = collect(x)
+    @test foldl(op, x) == foldl(op, v) == "((((1,2),3),4),5)"
+    @test foldr(op, x) == foldr(op, v) == "(1,(2,(3,(4,5))))"
+    @test mapfoldl(abs2, op, x) == mapfoldl(abs2, op, v)
+    @test mapfoldr(abs2, op, x) == mapfoldr(abs2, op, v)
+    @test foldl(-, x) == foldl(-, v)
+    @test collect(Iterators.reverse(x)) == reverse(v)
+    for empty in (ChainedVector(Vector{Int}[]), ChainedVector([view([1], 1:0)]))
+        @test isempty(collect(Iterators.reverse(empty)))
+        @test isempty(collect(eachindex(empty)))
     end
 end
 

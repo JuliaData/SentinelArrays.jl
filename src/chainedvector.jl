@@ -342,8 +342,10 @@ struct IndexIterator{A}
 end
 
 Base.size(x::IndexIterator) = (length(x),)
-Base.length(x::IndexIterator) = sum(length, x.arrays)
+Base.length(x::IndexIterator) = mapreduce(length, +, x.arrays; init=0)
 Base.eltype(::Type{IndexIterator{A}}) where {A <: AbstractVector} = ChainedVectorIndex{A}
+# `Iterators.reverse(A)` walks `Iterators.reverse(eachindex(A))`; linear indices address the same elements
+Iterators.reverse(x::IndexIterator) = length(x):-1:1
 
 @inline function Base.eachindex(A::ChainedVector)
     # check for and remove any empty chunks
@@ -826,17 +828,17 @@ function Base.map!(f::F, x::ChainedVector, y::ChainedVector{T}) where {F, T}
     return x
 end
 
-Base.reduce(op::OP, x::ChainedVector) where {OP} = reduce(op, (reduce(op, y) for y in x.arrays))
+# Chunks reduce separately and their results reduce together, which `reduce` allows but folds don't
+# (folds use Base's in-order methods). With no chunks, reduce an empty Vector so `sum` gives zero.
+Base.reduce(op::OP, x::ChainedVector{T}) where {OP, T} =
+    isempty(x.arrays) ? reduce(op, T[]) : reduce(op, (reduce(op, y) for y in x.arrays))
 # Base's specialized methods; the generic one above would be ambiguous with them
 Base.reduce(::typeof(vcat), x::ChainedVector{<:AbstractVecOrMat}) =
     invoke(reduce, Tuple{typeof(vcat), AbstractVector{<:AbstractVecOrMat}}, vcat, x)
 Base.reduce(::typeof(hcat), x::ChainedVector{<:AbstractVecOrMat}) =
     invoke(reduce, Tuple{typeof(hcat), AbstractVector{<:AbstractVecOrMat}}, hcat, x)
-Base.foldl(op::OP, x::ChainedVector) where {OP} = foldl(op, (foldl(op, y) for y in x.arrays))
-Base.foldr(op::OP, x::ChainedVector) where {OP} = foldr(op, (foldr(op, y) for y in x.arrays))
-Base.mapreduce(f::F, op::OP, x::ChainedVector) where {F, OP} = reduce(op, (mapreduce(f, op, y) for y in x.arrays))
-Base.mapfoldl(f::F, op::OP, x::ChainedVector) where {F, OP} = foldl(op, (mapfoldl(f, op, y) for y in x.arrays))
-Base.mapfoldr(f::F, op::OP, x::ChainedVector) where {F, OP} = foldr(op, (mapfoldr(f, op, y) for y in x.arrays))
+Base.mapreduce(f::F, op::OP, x::ChainedVector{T}) where {F, OP, T} =
+    isempty(x.arrays) ? mapreduce(f, op, T[]) : reduce(op, (mapreduce(f, op, y) for y in x.arrays))
 Base.count(f::F, x::ChainedVector) where {F} = isempty(x) ? 0 : sum(count(f, y) for y in x.arrays)
 Base.count(x::ChainedVector) = isempty(x) ? 0 : sum(count(y) for y in x.arrays)
 
