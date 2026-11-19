@@ -29,6 +29,15 @@ x[1] = x.sentinel
 r = reverse(x)
 @test x.sentinel == r.sentinel
 
+@testset "reverse a SentinelVector with unset slots" begin
+    s = SentinelVector{String}(undef, 3)
+    s[1] = "a"
+    s[3] = "c"
+    @test isequal(reverse(s), ["c", missing, "a"])
+    @test isequal(reverse(s, 2, 3), ["a", "c", missing])
+    @test isequal(s, ["a", missing, "c"])
+end
+
 @test size(x) == (10,)
 x[1] = 3
 @test x[1] === 3
