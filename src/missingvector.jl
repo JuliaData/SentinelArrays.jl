@@ -17,7 +17,7 @@ Base.@propagate_inbounds function Base.setindex!(x::MissingVector, ::Missing, i:
     missing
 end
 
-Base.similar(x::MissingVector, ::Type{Missing}, dims::Dims{N}) where {N} = MissingVector(dims[1])
+Base.similar(x::MissingVector, ::Type{Missing}, dims::Dims{1}) = MissingVector(dims[1])
 
 function Base.empty!(x::MissingVector)
     x.len = 0
@@ -55,9 +55,15 @@ Base.@propagate_inbounds function Base.deleteat!(x::MissingVector, i::Integer)
 end
 
 Base.@propagate_inbounds function Base.deleteat!(x::MissingVector, inds)
-    for i in reverse(inds)
-        deleteat!(x, i)
+    # same index rules as `deleteat!(::Vector, inds)`
+    n = prev = 0
+    for i in inds
+        n > 0 && i <= prev && throw(ArgumentError("indices must be unique and sorted"))
+        @boundscheck checkbounds(x, i)
+        prev = i
+        n += 1
     end
+    x.len -= n
     return x
 end
 
@@ -88,9 +94,8 @@ function Base.popfirst!(x::MissingVector)
 end
 
 Base.@propagate_inbounds function Base.insert!(x::MissingVector, i::Integer, ::Missing)
-    if !(i == 1 && isempty(x))
-        @boundscheck checkbounds(x, i)
-    end
+    # like Vector, inserting one past the end appends
+    @boundscheck (1 <= i <= length(x) + 1) || throw(BoundsError(x, i))
     x.len += 1
     return x
 end

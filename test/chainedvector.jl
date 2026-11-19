@@ -867,6 +867,17 @@ end
     @test_throws ArgumentError insert!(v, 2, [missing])
 end
 
+@testset "MissingVector follows Vector's index rules" begin
+    @test length(insert!(MissingVector(2), 3, missing)) == 3
+    @test_throws BoundsError insert!(MissingVector(2), 4, missing)
+    @test_throws ArgumentError deleteat!(MissingVector(3), [1, 1])
+    @test_throws ArgumentError deleteat!(MissingVector(3), [2, 1])
+    @test_throws BoundsError deleteat!(MissingVector(3), [2, 4])
+    @test length(deleteat!(MissingVector(3), (i for i in 1:2))) == 1
+    @test isequal(hcat(MissingVector(2), [missing, missing]), fill(missing, 2, 2))
+    @test size(similar(MissingVector(2), Missing, (2, 3))) == (2, 3)
+end
+
 @testset "deleteat! with Bool mask" begin
     x = SentinelArray(["a", "b", "c", "d", "e"])
     mask = [false, true, false, false, false]
