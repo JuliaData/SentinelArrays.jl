@@ -84,16 +84,13 @@ defaultsentinel(T) = !isbitstype(T) ? undef : Base.issingletontype(T) ? throw(Ar
 function SentinelArray{T, N}(::UndefInitializer, dims::Tuple{Vararg{Integer}}, s=nothing, v=defaultvalue(T)) where {T, N}
     A = Array{T, N}(undef, dims)
     # initialize w/ missing values
-    if isbitstype(T)
-        if s === nothing
-            sent = defaultsentinel(T)
-            ccall(:memset, Ptr{Cvoid}, (Ptr{Cvoid}, Cint, Csize_t), pointer(A), 0xff, sizeof(A))
-        else
-            sent = s
-            fill!(A, sent)
-        end
+    if s === nothing
+        sent = defaultsentinel(T)
+        isbitstype(T) && ccall(:memset, Ptr{Cvoid}, (Ptr{Cvoid}, Cint, Csize_t), pointer(A), 0xff, sizeof(A))
     else
-        sent = something(s, defaultsentinel(T))
+        sent = s
+        # only an `undef` sentinel matches unset slots; any other must be stored in every slot
+        sent === undef || fill!(A, sent)
     end
     return SentinelArray(A, sent, v)
 end
@@ -242,10 +239,11 @@ function Base.empty!(A::SentinelVector)
     return A
 end
 
-function Base.resize!(A::SentinelVector{T}, len) where {T}
+function Base.resize!(A::SentinelVector{T, S}, len) where {T, S}
     oldlen = length(A)
     resize!(parent(A), len)
-    if isbitstype(T) && len > oldlen
+    # new slots must hold the sentinel to read as `value`, unless the sentinel is `undef`
+    if S !== UndefInitializer && len > oldlen
         sent = A.sentinel
         for i = (oldlen + 1:len)
             @inbounds A.data[i] = sent
